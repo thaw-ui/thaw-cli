@@ -1,0 +1,19 @@
+pub fn default_public_dir() -> String {
+    "public".to_string()
+}
+
+pub mod serve {
+    pub fn default_host() -> String {
+        "localhost".to_string()
+    }
+
+    pub fn default_port() -> u32 {
+        6321
+    }
+}
+
+pub mod build {
+    pub fn default_out_dir() -> String {
+        "dist".to_string()
+    }
+}

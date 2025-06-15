@@ -13,8 +13,10 @@ impl Cli {
             Commands::Build(subcommmands) => {
                 subcommmands.run(&context)?;
             }
+            Commands::Serve(subcommmands) => {
+                subcommmands.run(context)?;
+            }
         }
-
         color_eyre::Result::Ok(())
     }
 }
