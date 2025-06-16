@@ -35,7 +35,7 @@ impl ServeCommands {
         rt.block_on(async {
             let addr = format!(
                 "{}:{}",
-                context.config.serve.host, context.config.serve.port
+                context.config.server.host, context.config.server.port
             );
 
             let listener = match TcpListener::bind(addr).await {

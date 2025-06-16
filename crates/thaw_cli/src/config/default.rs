@@ -2,7 +2,7 @@ pub fn default_public_dir() -> String {
     "public".to_string()
 }
 
-pub mod serve {
+pub mod server {
     pub fn default_host() -> String {
         "localhost".to_string()
     }

@@ -1,6 +1,6 @@
 mod default;
 
-use default::{build, default_public_dir, serve};
+use default::{build, default_public_dir, server};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -11,8 +11,8 @@ pub struct Config {
     #[serde(default = "default_public_dir")]
     pub public_dir: String,
 
-    #[serde(default = "ServeConfig::default")]
-    pub serve: ServeConfig,
+    #[serde(default = "ServerConfig::default")]
+    pub server: ServerConfig,
 
     #[serde(default = "BuildConfig::default")]
     pub build: BuildConfig,
@@ -28,18 +28,18 @@ impl Config {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct ServeConfig {
-    #[serde(default = "serve::default_host")]
+pub struct ServerConfig {
+    #[serde(default = "server::default_host")]
     pub host: String,
-    #[serde(default = "serve::default_port")]
+    #[serde(default = "server::default_port")]
     pub port: u32,
 }
 
-impl Default for ServeConfig {
+impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            host: serve::default_host(),
-            port: serve::default_port(),
+            host: server::default_host(),
+            port: server::default_port(),
         }
     }
 }
