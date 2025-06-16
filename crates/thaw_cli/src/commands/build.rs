@@ -1,4 +1,7 @@
-use crate::{context::Context, utils::DotEyre};
+use crate::{
+    context::Context,
+    utils::{DotEyre, copy_dir_all},
+};
 use clap::{Args, Subcommand};
 use color_eyre::eyre::eyre;
 use std::{fs, io::Write};
@@ -67,7 +70,7 @@ impl BuildCommands {
         let public_dir = context.current_dir.join(context.config.public_dir.clone());
 
         if fs::exists(public_dir.clone())? {
-            fs::copy(public_dir, new_public_dir)?;
+            copy_dir_all(public_dir, new_public_dir)?;
         }
 
         color_eyre::Result::Ok(())
