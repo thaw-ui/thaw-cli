@@ -11,7 +11,7 @@ impl Cli {
     pub fn run(self, context: Context) -> color_eyre::Result<()> {
         match self.commands {
             Commands::Build(subcommmands) => {
-                subcommmands.run(&context)?;
+                subcommmands.run(&context, false)?;
             }
             Commands::Serve(subcommmands) => {
                 subcommmands.run(context)?;

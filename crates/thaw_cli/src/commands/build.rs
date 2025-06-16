@@ -16,19 +16,19 @@ pub enum BuildCommands {
 }
 
 impl BuildCommands {
-    pub fn run(self, context: &Context) -> color_eyre::Result<()> {
+    pub fn run(self, context: &Context, serve: bool) -> color_eyre::Result<()> {
         Self::clear_out_dir(context)?;
         Self::copy_public_dir(context)?;
         match self {
             Self::Csr => {
-                Self::build_index_html(context)?;
+                Self::build_index_html(context, serve)?;
                 let cargo_args = vec!["build", "--target=wasm32-unknown-unknown", "--features=csr"];
                 Self::build(cargo_args)?;
                 Self::wasm_bindgen(context)?;
             }
             Self::Ssr(build_ssr_args) => {
                 if !build_ssr_args.no_hydrate {
-                    BuildCommands::Hydrate.run(context)?;
+                    BuildCommands::Hydrate.run(context, serve)?;
                 }
 
                 let cargo_args = vec!["--features=ssr"];
@@ -76,7 +76,7 @@ impl BuildCommands {
         color_eyre::Result::Ok(())
     }
 
-    fn build_index_html(context: &Context) -> color_eyre::Result<()> {
+    fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()> {
         let html_path = context.current_dir.join("index.html");
         let mut html_str = fs::read_to_string(html_path)?;
         let Some(body_end_index) = html_str.find("</body>") else {
@@ -84,18 +84,29 @@ impl BuildCommands {
         };
 
         let package_name = context.cargo_package_name()?;
-        let import_script = format!(
+        let mut import_script = format!(
             r#"<script type="module">import init from '/{package_name}.js';await init({{ module_or_path: '/{package_name}_bg.wasm' }})</script>"#,
         );
 
+        if serve {
+            import_script.push_str(r#"<script src="/__thaw_cli__.js"></script>"#);
+        }
+
         html_str.insert_str(body_end_index, &import_script);
 
-        let new_html_path = context
+        let out_dir = context
             .current_dir
-            .join(context.config.build.out_dir.clone())
-            .join("index.html");
+            .join(context.config.build.out_dir.clone());
+
+        let new_html_path = out_dir.join("index.html");
         let mut file = fs::File::create_new(new_html_path)?;
         file.write_all(html_str.as_bytes())?;
+
+        if serve {
+            let path = out_dir.join("__thaw_cli__.js");
+            let mut file = fs::File::create_new(path)?;
+            file.write_all(include_str!("./build/__thaw_cli__.js").as_bytes())?;
+        }
 
         color_eyre::Result::Ok(())
     }
