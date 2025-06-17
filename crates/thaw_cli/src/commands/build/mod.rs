@@ -31,7 +31,7 @@ impl BuildCommands {
                     BuildCommands::Hydrate.run(context, serve)?;
                 }
 
-                let cargo_args = vec!["--features=ssr"];
+                let cargo_args = vec!["build", "--features=ssr"];
                 Self::build(cargo_args)?;
             }
             Self::Hydrate => {

@@ -1215,6 +1215,7 @@ dependencies = [
  "color-eyre",
  "notify",
  "serde",
+ "serde_json",
  "tokio",
  "toml",
  "tower-http",

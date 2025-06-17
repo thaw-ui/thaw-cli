@@ -9,6 +9,7 @@ use axum::{
     response::Response,
     routing::{get, get_service},
 };
+use serde::Serialize;
 use std::sync::Arc;
 use tokio::{
     net::TcpListener,
@@ -41,36 +42,7 @@ pub fn run(context: Context) -> color_eyre::Result<()> {
                 let mut handle = None::<(broadcast::Sender<()>, JoinHandle<()>)>;
 
                 while let Some(event) = serve_rx.recv().await {
-                    let run_serve_ = {
-                        let context = context.clone();
-                        move || {
-                            let (tx, _) = broadcast::channel(10);
-                            let context = context.clone();
-                            let thaw_cli_ws = ThawCliWs { tx: tx.clone() };
-                            let jh = task::spawn(async {
-                                run_serve(context, thaw_cli_ws).await.unwrap();
-                            });
-
-                            (tx, jh)
-                        }
-                    };
-                    match event {
-                        ServeEvent::Restart => {
-                            if let Some((_, jh)) = handle.take() {
-                                jh.abort();
-                            }
-                            let rt = run_serve_();
-                            handle = Some(rt);
-                        }
-                        ServeEvent::RefreshPage => {
-                            if let Some((tx, _)) = &handle {
-                                let _ = tx.send(());
-                            } else {
-                                let rt = run_serve_();
-                                handle = Some(rt);
-                            }
-                        }
-                    }
+                    event.run(&mut handle, context.clone());
                 }
             }
         });
@@ -89,6 +61,37 @@ enum ServeEvent {
     RefreshPage,
 }
 
+impl ServeEvent {
+    fn run(
+        self,
+        handle: &mut Option<(broadcast::Sender<()>, JoinHandle<()>)>,
+        context: Arc<Context>,
+    ) {
+        match self {
+            ServeEvent::Restart => {
+                if let Some((_, jh)) = handle.take() {
+                    jh.abort();
+                }
+
+                let (tx, _) = broadcast::channel(10);
+                let thaw_cli_ws = ThawCliWs { tx: tx.clone() };
+                let jh = task::spawn(async {
+                    run_serve(context, thaw_cli_ws).await.unwrap();
+                });
+
+                *handle = Some((tx, jh));
+            }
+            ServeEvent::RefreshPage => {
+                if let Some((tx, _)) = &handle {
+                    let _ = tx.send(());
+                } else {
+                    ServeEvent::Restart.run(handle, context);
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct ThawCliWs {
     tx: broadcast::Sender<()>,
@@ -103,7 +106,7 @@ async fn run_serve(context: Arc<Context>, state: ThawCliWs) -> color_eyre::Resul
         ServeDir::new(out_dir.clone()).fallback(ServeFile::new(out_dir.join("index.html")));
 
     let app = Router::new()
-        .route("/__thaw_cli_ws__", get(thaw_cli_ws))
+        .route("/__thaw_cli__", get(thaw_cli_ws))
         .fallback_service(get_service(serve_dir))
         .with_state(state);
 
@@ -127,10 +130,25 @@ async fn thaw_cli_ws(ws: WebSocketUpgrade, State(state): State<ThawCliWs>) -> Re
 }
 
 async fn handle_thaw_cli_ws(mut socket: WebSocket, state: ThawCliWs) {
+    let _ = socket.send(WsMessage::Connected.into());
     let mut rx = state.tx.subscribe();
     task::spawn(async move {
         while let Ok(_) = rx.recv().await {
-            let _ = socket.send(ws::Message::Text("RefreshPage".into())).await;
+            let _ = socket.send(WsMessage::RefreshPage.into()).await;
         }
     });
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type")]
+enum WsMessage {
+    Connected,
+    RefreshPage,
+}
+
+impl From<WsMessage> for ws::Message {
+    fn from(value: WsMessage) -> Self {
+        let value = serde_json::to_string(&value).unwrap();
+        Self::text(value)
+    }
 }
