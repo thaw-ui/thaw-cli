@@ -105,7 +105,7 @@ impl BuildCommands {
         if serve {
             let path = out_dir.join("__thaw_cli__.js");
             let mut file = fs::File::create_new(path)?;
-            file.write_all(include_str!("./build/__thaw_cli__.js").as_bytes())?;
+            file.write_all(include_str!("./__thaw_cli__.js").as_bytes())?;
         }
 
         color_eyre::Result::Ok(())
