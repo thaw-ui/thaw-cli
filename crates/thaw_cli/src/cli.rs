@@ -19,4 +19,9 @@ impl Cli {
         }
         color_eyre::Result::Ok(())
     }
+
+    #[inline]
+    pub fn is_serve(&self) -> bool {
+        matches!(self.commands, Commands::Serve(_))
+    }
 }

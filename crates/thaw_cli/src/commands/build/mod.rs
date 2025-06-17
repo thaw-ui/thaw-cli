@@ -60,9 +60,7 @@ impl BuildCommands {
     }
 
     fn clear_out_dir(context: &Context) -> color_eyre::Result<()> {
-        let out_dir = context
-            .current_dir
-            .join(context.config.build.out_dir.clone());
+        let out_dir = &context.out_dir;
         if fs::exists(out_dir.clone())? {
             fs::remove_dir_all(out_dir.clone())?;
         }
@@ -74,9 +72,7 @@ impl BuildCommands {
         if context.config.public_dir.is_empty() {
             return color_eyre::Result::Ok(());
         }
-        let new_public_dir = context
-            .current_dir
-            .join(context.config.build.out_dir.clone());
+        let new_public_dir = &context.out_dir;
 
         let public_dir = context.current_dir.join(context.config.public_dir.clone());
 
@@ -105,9 +101,7 @@ impl BuildCommands {
 
         html_str.insert_str(body_end_index, &import_script);
 
-        let out_dir = context
-            .current_dir
-            .join(context.config.build.out_dir.clone());
+        let out_dir = &context.out_dir;
 
         let new_html_path = out_dir.join("index.html");
         let mut file = fs::File::create_new(new_html_path)?;
@@ -132,7 +126,7 @@ impl BuildCommands {
     fn wasm_bindgen(context: &Context) -> color_eyre::Result<()> {
         let mut bindgen = Bindgen::new();
 
-        let target_dir = context.target_dir()?.join(format!(
+        let target_dir = context.target_dir.join(format!(
             "wasm32-unknown-unknown/{}/{}.wasm",
             if context.config.release {
                 "release"
@@ -143,9 +137,7 @@ impl BuildCommands {
         ));
         let bindgen = bindgen.input_path(target_dir).web(true).dot_eyre()?;
 
-        let out_dir = context
-            .current_dir
-            .join(context.config.build.out_dir.clone());
+        let out_dir = &context.out_dir;
         bindgen.generate(out_dir).dot_eyre()?;
 
         color_eyre::Result::Ok(())

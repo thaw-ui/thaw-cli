@@ -22,10 +22,8 @@ impl Config {
     pub fn parse(path: PathBuf, user_input: bool) -> color_eyre::Result<Self> {
         let config = if user_input {
             std::fs::read_to_string(path)?
-        } else if let Ok(config) = std::fs::read_to_string(path) {
-            config
         } else {
-            String::new()
+            std::fs::read_to_string(path).unwrap_or_default()
         };
         let config: Self = toml::from_str(&config)?;
         color_eyre::Result::Ok(config)

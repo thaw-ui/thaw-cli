@@ -13,7 +13,7 @@ fn main() -> color_eyre::Result<()> {
     let config = Config::parse(config_path, false)?;
     println!("{:#?}", config);
 
-    let context = Context::new(config, current_dir)?;
+    let context = Context::new(config, current_dir, cli.is_serve())?;
     println!("{:#?}", context);
 
     cli.run(context)

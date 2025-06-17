@@ -29,7 +29,7 @@ pub fn run(context: Context) -> color_eyre::Result<()> {
         task::spawn({
             let context = context.clone();
             async move {
-                while let Some(_) = build_rx.recv().await {
+                while (build_rx.recv().await).is_some() {
                     BuildCommands::Csr.run(&context, true).unwrap();
                     serve_tx.send(ServeEvent::RefreshPage).await.unwrap();
                 }
@@ -98,9 +98,7 @@ struct ThawCliWs {
 }
 
 async fn run_serve(context: Arc<Context>, state: ThawCliWs) -> color_eyre::Result<()> {
-    let out_dir = context
-        .current_dir
-        .join(context.config.build.out_dir.clone());
+    let out_dir = &context.out_dir;
 
     let serve_dir =
         ServeDir::new(out_dir.clone()).fallback(ServeFile::new(out_dir.join("index.html")));
@@ -130,10 +128,10 @@ async fn thaw_cli_ws(ws: WebSocketUpgrade, State(state): State<ThawCliWs>) -> Re
 }
 
 async fn handle_thaw_cli_ws(mut socket: WebSocket, state: ThawCliWs) {
-    let _ = socket.send(WsMessage::Connected.into());
+    let _ = socket.send(WsMessage::Connected.into()).await;
     let mut rx = state.tx.subscribe();
     task::spawn(async move {
-        while let Ok(_) = rx.recv().await {
+        while (rx.recv().await).is_ok() {
             let _ = socket.send(WsMessage::RefreshPage.into()).await;
         }
     });
