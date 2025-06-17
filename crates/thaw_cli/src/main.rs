@@ -10,7 +10,7 @@ fn main() -> color_eyre::Result<()> {
     let current_dir = env::current_dir()?;
 
     let config_path = current_dir.join("Thaw.toml");
-    let config = Config::parse(config_path)?;
+    let config = Config::parse(config_path, false)?;
     println!("{:#?}", config);
 
     let context = Context::new(config, current_dir)?;

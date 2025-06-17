@@ -10,7 +10,6 @@ use std::{
 pub struct Context {
     pub config: Config,
     pub current_dir: PathBuf,
-    pub target_dir: PathBuf,
     cargo_manifest: Manifest,
 }
 
@@ -18,12 +17,9 @@ impl Context {
     pub fn new(config: Config, current_dir: PathBuf) -> color_eyre::Result<Self> {
         let cargo_manifest = Manifest::from_path(current_dir.join("Cargo.toml"))?;
 
-        let target_dir = Self::get_target_dir(&current_dir)?;
-
         color_eyre::Result::Ok(Self {
             config,
             current_dir,
-            target_dir,
             cargo_manifest,
         })
     }
@@ -34,6 +30,18 @@ impl Context {
         } else {
             color_eyre::Result::Err(eyre!("Cargo.toml file not found"))
         }
+    }
+
+    pub(crate) fn cargo_features_contains_key(&self, key: &str) -> color_eyre::Result<bool> {
+        if let Some(features) = &self.cargo_manifest.features {
+            color_eyre::Result::Ok(features.contains_key(key))
+        } else {
+            color_eyre::Result::Err(eyre!("Cargo.toml file not found"))
+        }
+    }
+
+    pub fn target_dir(&self) -> color_eyre::Result<PathBuf> {
+        Self::get_target_dir(&self.current_dir)
     }
 
     fn get_target_dir(dir: &Path) -> color_eyre::Result<PathBuf> {

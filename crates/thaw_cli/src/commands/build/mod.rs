@@ -22,7 +22,13 @@ impl BuildCommands {
         match self {
             Self::Csr => {
                 Self::build_index_html(context, serve)?;
-                let cargo_args = vec!["build", "--target=wasm32-unknown-unknown", "--features=csr"];
+                let mut cargo_args = vec!["--target=wasm32-unknown-unknown"];
+                if context.cargo_features_contains_key("csr")? {
+                    cargo_args.push("--features=csr");
+                }
+                if context.config.release {
+                    cargo_args.push("--release");
+                }
                 Self::build(cargo_args)?;
                 Self::wasm_bindgen(context)?;
             }
@@ -31,15 +37,21 @@ impl BuildCommands {
                     BuildCommands::Hydrate.run(context, serve)?;
                 }
 
-                let cargo_args = vec!["build", "--features=ssr"];
+                let mut cargo_args = vec!["--features=ssr"];
+                if context.config.release {
+                    cargo_args.push("--release");
+                }
                 Self::build(cargo_args)?;
             }
             Self::Hydrate => {
-                let cargo_args = vec![
-                    "build",
+                let mut cargo_args = vec![
                     "--target=wasm32-unknown-unknown",
+                    "--lib",
                     "--features=hydrate",
                 ];
+                if context.config.release {
+                    cargo_args.push("--release");
+                }
                 Self::build(cargo_args)?;
                 Self::wasm_bindgen(context)?;
             }
@@ -62,10 +74,9 @@ impl BuildCommands {
         if context.config.public_dir.is_empty() {
             return color_eyre::Result::Ok(());
         }
-        let out_dir = context
+        let new_public_dir = context
             .current_dir
             .join(context.config.build.out_dir.clone());
-        let new_public_dir = out_dir.join(context.config.public_dir.clone());
 
         let public_dir = context.current_dir.join(context.config.public_dir.clone());
 
@@ -113,7 +124,7 @@ impl BuildCommands {
 
     fn build(args: Vec<&'static str>) -> color_eyre::Result<()> {
         let sh = Shell::new()?;
-        cmd!(sh, "cargo {args...}").run()?;
+        cmd!(sh, "cargo build {args...}").run()?;
 
         color_eyre::Result::Ok(())
     }
@@ -121,7 +132,7 @@ impl BuildCommands {
     fn wasm_bindgen(context: &Context) -> color_eyre::Result<()> {
         let mut bindgen = Bindgen::new();
 
-        let target_dir = context.target_dir.join(format!(
+        let target_dir = context.target_dir()?.join(format!(
             "wasm32-unknown-unknown/{}/{}.wasm",
             if context.config.release {
                 "release"
@@ -143,5 +154,6 @@ impl BuildCommands {
 
 #[derive(Debug, Args)]
 pub struct BuildSsrArgs {
+    #[arg(long, action=clap::ArgAction::SetTrue, default_value_t=false, default_missing_value="true")]
     pub no_hydrate: bool,
 }
