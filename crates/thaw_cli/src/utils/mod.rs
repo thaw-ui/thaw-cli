@@ -13,3 +13,8 @@ pub fn thaw_cli_home_dir() -> PathBuf {
         .map(|f| f.join("thaw-cli"))
         .unwrap_or_else(|| dirs::home_dir().unwrap().join(".thaw-cli"))
 }
+
+#[inline]
+pub fn thaw_cli_cache_dir() -> PathBuf {
+    thaw_cli_home_dir().join("cache")
+}

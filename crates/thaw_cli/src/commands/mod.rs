@@ -17,7 +17,10 @@ pub enum Commands {
 
 impl Commands {
     pub fn run(self, context: Context) -> color_eyre::Result<()> {
-        let rt = runtime::Builder::new_multi_thread().enable_io().build()?;
+        let rt = runtime::Builder::new_multi_thread()
+            .enable_io()
+            .enable_time()
+            .build()?;
         rt.block_on(async {
             match self {
                 Self::Build(subcommmands) => {

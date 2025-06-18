@@ -6,7 +6,11 @@ use crate::{
 };
 use clap::{Args, Subcommand};
 use color_eyre::eyre::eyre;
-use std::{fs, io::Write, path::PathBuf};
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 use wasm_bindgen_cli_support::Bindgen;
 use xshell::{Shell, cmd};
 
@@ -32,8 +36,7 @@ impl BuildCommands {
                     cargo_args.push("--release");
                 }
                 Self::build(cargo_args)?;
-                wasm_bindgen(&build_wasm_path(context)?, &context.wasm_bindgen_dir)?;
-                wasm_opt(&context.wasm_bindgen_dir, &context.out_dir).await?;
+                wasm_bindgen(context, &build_wasm_path(context)?, &context.out_dir).await?;
             }
             Self::Ssr(build_ssr_args) => {
                 if !build_ssr_args.no_hydrate {
@@ -131,18 +134,47 @@ fn build_wasm_path(context: &Context) -> color_eyre::Result<PathBuf> {
     color_eyre::Result::Ok(wasm_path)
 }
 
-fn wasm_bindgen(input_path: &PathBuf, out_path: &PathBuf) -> color_eyre::Result<()> {
+async fn wasm_bindgen(
+    context: &Context,
+    input_path: &PathBuf,
+    out_path: &Path,
+) -> color_eyre::Result<()> {
     let mut bindgen = Bindgen::new();
     let bindgen = bindgen.input_path(input_path).web(true).dot_eyre()?;
-    bindgen.generate(out_path).dot_eyre()?;
+    bindgen
+        .generate(context.wasm_bindgen_dir.clone())
+        .dot_eyre()?;
+
+    let package_name = context.cargo_package_name()?;
+    let wasm_name = format!("{package_name}_bg.wasm");
+    let js_name = format!("{package_name}.js");
+
+    let wasm_path = context.wasm_bindgen_dir.join(wasm_name.clone());
+    let out_wasm_path = out_path.join(wasm_name);
+    wasm_opt(&wasm_path, &out_wasm_path).await?;
+
+    let js_path = context.wasm_bindgen_dir.join(js_name.clone());
+    let out_js_path = out_path.join(js_name);
+    tokio::fs::copy(js_path, out_js_path).await?;
+
     color_eyre::Result::Ok(())
 }
 
-async fn wasm_opt(input_path: &PathBuf, out_path: &PathBuf) -> color_eyre::Result<()> {
+async fn wasm_opt(input_path: &Path, out_path: &Path) -> color_eyre::Result<()> {
     let path = wasm_opt_bin_path().await?;
     let sh = Shell::new()?;
     // wasm_opt::OptimizationOptions::new_optimize_for_size_aggressively()
-    let args = vec![input_path.to_str().unwrap(), out_path.to_str().unwrap()];
+    let args = vec![
+        input_path.to_str().unwrap(),
+        "-o",
+        out_path.to_str().unwrap(),
+        "-Oz",
+        "--enable-reference-types",
+        "--enable-bulk-memory",
+        "--enable-mutable-globals",
+        "--enable-nontrapping-float-to-int",
+        "--debuginfo",
+    ];
     cmd!(sh, "{path} {args...}").run()?;
     color_eyre::Result::Ok(())
 }

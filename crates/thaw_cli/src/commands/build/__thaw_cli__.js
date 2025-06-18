@@ -16,7 +16,7 @@ console.debug("[thaw-cli] connecting...");
 const socket = new WebSocket(`ws://${window.location.host}/__thaw_cli__`);
 
 socket.addEventListener("message", function (event) {
-    handleMessage(event.data);
+    handleMessage(JSON.parse(event.data));
 });
 
 function handleMessage(payload) {

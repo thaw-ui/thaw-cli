@@ -1,4 +1,6 @@
-use super::thaw_cli_home_dir;
+use crate::utils::copy_dir_all;
+
+use super::{thaw_cli_cache_dir, thaw_cli_home_dir};
 use color_eyre::eyre::eyre;
 use flate2::read;
 use std::path::PathBuf;
@@ -13,10 +15,15 @@ pub async fn wasm_opt_bin_path() -> color_eyre::Result<PathBuf> {
         let install_dir = binaryen_install_dir().await?;
         let install_path = install_dir.join("bin").join(binaryen_bin_name());
         if !install_path.exists() {
-            let url = find_latest_binaryen_download_url().await?;
+            let cache_dir = thaw_cli_cache_dir();
+            let (dir_name, url) = find_latest_binaryen_download_url().await?;
             let bytes = reqwest::get(url).await?.bytes().await?;
             let mut archive = tar::Archive::new(read::GzDecoder::new(bytes.as_ref()));
-            archive.unpack(install_dir)?;
+            archive.unpack(cache_dir.clone())?;
+
+            let dir_path = cache_dir.join(dir_name);
+            copy_dir_all(dir_path.clone(), install_dir)?;
+            fs::remove_dir_all(dir_path).await?;
         }
         color_eyre::Result::Ok(install_path)
     }
@@ -36,7 +43,7 @@ fn binaryen_bin_name() -> &'static str {
     }
 }
 
-async fn find_latest_binaryen_download_url() -> color_eyre::Result<String> {
+async fn find_latest_binaryen_download_url() -> color_eyre::Result<(String, String)> {
     let client = reqwest::Client::new();
     let response = client
         .get("https://api.github.com/repos/WebAssembly/binaryen/releases/latest")
@@ -45,6 +52,11 @@ async fn find_latest_binaryen_download_url() -> color_eyre::Result<String> {
         .await?
         .json::<serde_json::Value>()
         .await?;
+
+    let tag_name = response
+        .get("tag_name")
+        .and_then(|tag_name| tag_name.as_str())
+        .ok_or_else(|| eyre!("Failed to parse tag_name"))?;
     let assets = response
         .get("assets")
         .and_then(|assets| assets.as_array())
@@ -86,5 +98,5 @@ async fn find_latest_binaryen_download_url() -> color_eyre::Result<String> {
         .and_then(|url| url.as_str())
         .ok_or_else(|| eyre!("Failed to get download URL for wasm-opt"))?;
 
-    Ok(download_url.to_string())
+    Ok((format!("binaryen-{tag_name}"), download_url.to_string()))
 }

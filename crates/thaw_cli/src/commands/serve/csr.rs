@@ -16,7 +16,10 @@ use tokio::{
     sync::{broadcast, mpsc},
     task::{self, JoinHandle},
 };
-use tower_http::services::{ServeDir, ServeFile};
+use tower_http::{
+    compression::CompressionLayer,
+    services::{ServeDir, ServeFile},
+};
 
 pub async fn run(context: Arc<Context>) -> color_eyre::Result<()> {
     let (build_tx, mut build_rx) = mpsc::channel::<()>(1);
@@ -95,13 +98,18 @@ struct ThawCliWs {
 async fn run_serve(context: Arc<Context>, state: ThawCliWs) -> color_eyre::Result<()> {
     let out_dir = &context.out_dir;
 
-    let serve_dir =
-        ServeDir::new(out_dir.clone()).fallback(ServeFile::new(out_dir.join("index.html")));
+    let serve_dir = ServeDir::new(out_dir.clone())
+        .fallback(ServeFile::new(out_dir.join("index.html")))
+        .precompressed_br()
+        .precompressed_zstd()
+        .precompressed_gzip()
+        .precompressed_deflate();
 
     let app = Router::new()
         .route("/__thaw_cli__", get(thaw_cli_ws))
         .fallback_service(get_service(serve_dir))
-        .with_state(state);
+        .with_state(state)
+        .layer(CompressionLayer::new());
 
     let addr = format!(
         "{}:{}",
