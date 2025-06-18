@@ -9,15 +9,7 @@ pub struct Cli {
 
 impl Cli {
     pub fn run(self, context: Context) -> color_eyre::Result<()> {
-        match self.commands {
-            Commands::Build(subcommmands) => {
-                subcommmands.run(&context, false)?;
-            }
-            Commands::Serve(subcommmands) => {
-                subcommmands.run(context)?;
-            }
-        }
-        color_eyre::Result::Ok(())
+        self.commands.run(context)
     }
 
     #[inline]

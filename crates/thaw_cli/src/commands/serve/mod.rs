@@ -3,6 +3,7 @@ mod watch;
 
 use crate::context::Context;
 use clap::Subcommand;
+use std::sync::Arc;
 
 #[derive(Debug, Subcommand)]
 pub enum ServeCommands {
@@ -11,9 +12,11 @@ pub enum ServeCommands {
 }
 
 impl ServeCommands {
-    pub fn run(self, context: Context) -> color_eyre::Result<()> {
+    pub async fn run(self, context: Context) -> color_eyre::Result<()> {
+        let context = Arc::new(context);
+
         match self {
-            ServeCommands::Csr => csr::run(context)?,
+            ServeCommands::Csr => csr::run(context).await?,
             ServeCommands::Ssr => todo!(),
         }
         color_eyre::Result::Ok(())

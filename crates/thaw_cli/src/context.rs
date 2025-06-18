@@ -6,9 +6,13 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Context {
+    /// User-specified or default configuration files.
     pub(crate) config: Config,
+    /// Run the current command in the directory.
     pub(crate) current_dir: PathBuf,
+    /// The target directory of the package.
     pub(crate) target_dir: PathBuf,
+    pub(crate) wasm_bindgen_dir: PathBuf,
     pub(crate) out_dir: PathBuf,
     cargo_manifest: Manifest,
 }
@@ -16,15 +20,21 @@ pub struct Context {
 impl Context {
     pub fn new(config: Config, current_dir: PathBuf, serve: bool) -> color_eyre::Result<Self> {
         let cargo_manifest = Manifest::from_path(current_dir.join("Cargo.toml"))?;
+        let package_name = Self::package_name(&cargo_manifest, &current_dir)?;
+
         let metadata = MetadataCommand::new().exec()?;
         let target_dir = metadata.target_directory.into_std_path_buf();
+        let thaw_cli_dir = target_dir.join("thaw-cli");
+
+        let wasm_bindgen_dir = thaw_cli_dir
+            .join("wasm-bindgen")
+            .join(if config.release { "release" } else { "debug" })
+            .join(&package_name);
 
         let out_dir = if serve {
-            let package_name = Self::package_name(&cargo_manifest, &current_dir)?;
-            target_dir
-                .join("thaw-cli")
+            thaw_cli_dir
                 .join(if config.release { "release" } else { "debug" })
-                .join(package_name)
+                .join(&package_name)
         } else {
             current_dir.join(config.build.out_dir.clone())
         };
@@ -32,13 +42,18 @@ impl Context {
             config,
             current_dir,
             target_dir,
+            wasm_bindgen_dir,
             out_dir,
             cargo_manifest,
         })
     }
 
     pub(crate) fn cargo_package_name(&self) -> color_eyre::Result<String> {
-        Self::package_name(&self.cargo_manifest, &self.current_dir)
+        if let Some(package) = &self.cargo_manifest.package {
+            color_eyre::Result::Ok(package.name.clone())
+        } else {
+            color_eyre::Result::Err(eyre!("The Carog.toml file does not have a package name"))
+        }
     }
 
     fn package_name(manifest: &Manifest, current_dir: &Path) -> color_eyre::Result<String> {

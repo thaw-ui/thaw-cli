@@ -1,10 +1,12 @@
+mod hydrate;
+
 use crate::{
     context::Context,
-    utils::{DotEyre, copy_dir_all},
+    utils::{DotEyre, copy_dir_all, wasm_opt_bin_path},
 };
 use clap::{Args, Subcommand};
 use color_eyre::eyre::eyre;
-use std::{fs, io::Write};
+use std::{fs, io::Write, path::PathBuf};
 use wasm_bindgen_cli_support::Bindgen;
 use xshell::{Shell, cmd};
 
@@ -16,7 +18,7 @@ pub enum BuildCommands {
 }
 
 impl BuildCommands {
-    pub fn run(self, context: &Context, serve: bool) -> color_eyre::Result<()> {
+    pub async fn run(self, context: &Context, serve: bool) -> color_eyre::Result<()> {
         Self::clear_out_dir(context)?;
         Self::copy_public_dir(context)?;
         match self {
@@ -30,11 +32,12 @@ impl BuildCommands {
                     cargo_args.push("--release");
                 }
                 Self::build(cargo_args)?;
-                Self::wasm_bindgen(context)?;
+                wasm_bindgen(&build_wasm_path(context)?, &context.wasm_bindgen_dir)?;
+                wasm_opt(&context.wasm_bindgen_dir, &context.out_dir).await?;
             }
             Self::Ssr(build_ssr_args) => {
                 if !build_ssr_args.no_hydrate {
-                    BuildCommands::Hydrate.run(context, serve)?;
+                    hydrate::run(context).await?;
                 }
 
                 let mut cargo_args = vec!["--features=ssr"];
@@ -44,16 +47,7 @@ impl BuildCommands {
                 Self::build(cargo_args)?;
             }
             Self::Hydrate => {
-                let mut cargo_args = vec![
-                    "--target=wasm32-unknown-unknown",
-                    "--lib",
-                    "--features=hydrate",
-                ];
-                if context.config.release {
-                    cargo_args.push("--release");
-                }
-                Self::build(cargo_args)?;
-                Self::wasm_bindgen(context)?;
+                hydrate::run(context).await?;
             }
         }
         color_eyre::Result::Ok(())
@@ -122,26 +116,35 @@ impl BuildCommands {
 
         color_eyre::Result::Ok(())
     }
+}
 
-    fn wasm_bindgen(context: &Context) -> color_eyre::Result<()> {
-        let mut bindgen = Bindgen::new();
+fn build_wasm_path(context: &Context) -> color_eyre::Result<PathBuf> {
+    let wasm_path = context.target_dir.join(format!(
+        "wasm32-unknown-unknown/{}/{}.wasm",
+        if context.config.release {
+            "release"
+        } else {
+            "debug"
+        },
+        context.cargo_package_name()?
+    ));
+    color_eyre::Result::Ok(wasm_path)
+}
 
-        let target_dir = context.target_dir.join(format!(
-            "wasm32-unknown-unknown/{}/{}.wasm",
-            if context.config.release {
-                "release"
-            } else {
-                "debug"
-            },
-            context.cargo_package_name()?
-        ));
-        let bindgen = bindgen.input_path(target_dir).web(true).dot_eyre()?;
+fn wasm_bindgen(input_path: &PathBuf, out_path: &PathBuf) -> color_eyre::Result<()> {
+    let mut bindgen = Bindgen::new();
+    let bindgen = bindgen.input_path(input_path).web(true).dot_eyre()?;
+    bindgen.generate(out_path).dot_eyre()?;
+    color_eyre::Result::Ok(())
+}
 
-        let out_dir = &context.out_dir;
-        bindgen.generate(out_dir).dot_eyre()?;
-
-        color_eyre::Result::Ok(())
-    }
+async fn wasm_opt(input_path: &PathBuf, out_path: &PathBuf) -> color_eyre::Result<()> {
+    let path = wasm_opt_bin_path().await?;
+    let sh = Shell::new()?;
+    // wasm_opt::OptimizationOptions::new_optimize_for_size_aggressively()
+    let args = vec![input_path.to_str().unwrap(), out_path.to_str().unwrap()];
+    cmd!(sh, "{path} {args...}").run()?;
+    color_eyre::Result::Ok(())
 }
 
 #[derive(Debug, Args)]

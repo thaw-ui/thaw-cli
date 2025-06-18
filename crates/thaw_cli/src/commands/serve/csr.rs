@@ -13,46 +13,41 @@ use serde::Serialize;
 use std::sync::Arc;
 use tokio::{
     net::TcpListener,
-    runtime::Builder,
     sync::{broadcast, mpsc},
     task::{self, JoinHandle},
 };
 use tower_http::services::{ServeDir, ServeFile};
 
-pub fn run(context: Context) -> color_eyre::Result<()> {
-    let rt = Builder::new_multi_thread().enable_io().build()?;
-    rt.block_on(async {
-        let context = Arc::new(context);
-        let (build_tx, mut build_rx) = mpsc::channel::<()>(1);
-        let (serve_tx, mut serve_rx) = mpsc::channel::<ServeEvent>(1);
+pub async fn run(context: Arc<Context>) -> color_eyre::Result<()> {
+    let (build_tx, mut build_rx) = mpsc::channel::<()>(1);
+    let (serve_tx, mut serve_rx) = mpsc::channel::<ServeEvent>(1);
 
-        task::spawn({
-            let context = context.clone();
-            async move {
-                while (build_rx.recv().await).is_some() {
-                    BuildCommands::Csr.run(&context, true).unwrap();
-                    serve_tx.send(ServeEvent::RefreshPage).await.unwrap();
-                }
+    task::spawn({
+        let context = context.clone();
+        async move {
+            while (build_rx.recv().await).is_some() {
+                BuildCommands::Csr.run(&context, true).await.unwrap();
+                serve_tx.send(ServeEvent::RefreshPage).await.unwrap();
             }
-        });
+        }
+    });
 
-        task::spawn({
-            let context = context.clone();
-            async move {
-                let mut handle = None::<(broadcast::Sender<()>, JoinHandle<()>)>;
+    task::spawn({
+        let context = context.clone();
+        async move {
+            let mut handle = None::<(broadcast::Sender<()>, JoinHandle<()>)>;
 
-                while let Some(event) = serve_rx.recv().await {
-                    event.run(&mut handle, context.clone());
-                }
+            while let Some(event) = serve_rx.recv().await {
+                event.run(&mut handle, context.clone());
             }
-        });
+        }
+    });
 
-        build_tx.send(()).await.unwrap();
+    build_tx.send(()).await.unwrap();
 
-        watch::watch(context, build_tx).await.unwrap();
+    watch::watch(context, build_tx).await.unwrap();
 
-        color_eyre::Result::Ok(())
-    })
+    color_eyre::Result::Ok(())
 }
 
 #[derive(Debug)]

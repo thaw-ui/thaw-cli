@@ -21,8 +21,13 @@ cargo_metadata = "0.20"
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1.0", features = ["full"] }
 tower-http = { version = "0.6", features = ["fs"] }
+reqwest = { version = "0.12", features = ["json"] }
 
 notify = "8.0"
+dirs = "6.0"
+which = "8.0"
+tar = "0.4"
+flate2 = "1.1"
 
 [[bin]]
 name = "thaw"
