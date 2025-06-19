@@ -1,5 +1,8 @@
 use super::common::{ServeEvent, THAW_CLI_WS_PATH, ThawCliWs, thaw_cli_ws};
-use crate::{commands::build::BuildCommands, context::Context};
+use crate::{
+    commands::build::{BuildCommands, BuildSsrArgs},
+    context::Context,
+};
 use axum::{
     Router,
     routing::{get, get_service},
@@ -10,23 +13,20 @@ use tokio::{
     sync::{broadcast, mpsc},
     task,
 };
-use tower_http::{
-    compression::CompressionLayer,
-    services::{ServeDir, ServeFile},
-};
+use tower_http::{compression::CompressionLayer, services::ServeDir};
 
 pub fn build(
     context: Arc<Context>,
     mut build_rx: mpsc::Receiver<()>,
     serve_tx: mpsc::Sender<ServeEvent>,
 ) {
-    task::spawn({
-        let context = context.clone();
-        async move {
-            while (build_rx.recv().await).is_some() {
-                BuildCommands::Csr.run(&context, true).await.unwrap();
-                serve_tx.send(ServeEvent::RefreshPage).await.unwrap();
-            }
+    task::spawn(async move {
+        while (build_rx.recv().await).is_some() {
+            BuildCommands::Ssr(BuildSsrArgs { no_hydrate: false })
+                .run(&context, true)
+                .await
+                .unwrap();
+            serve_tx.send(ServeEvent::RefreshPage).await.unwrap();
         }
     });
 }
@@ -36,7 +36,6 @@ pub async fn run_serve(context: Arc<Context>, tx: broadcast::Sender<()>) -> colo
     let out_dir = &context.out_dir;
 
     let serve_dir = ServeDir::new(out_dir.clone())
-        .fallback(ServeFile::new(out_dir.join("index.html")))
         .precompressed_br()
         .precompressed_zstd()
         .precompressed_gzip()
