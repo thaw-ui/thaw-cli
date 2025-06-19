@@ -6,6 +6,7 @@ use self::common::{clear_out_dir, copy_public_dir, wasm_bindgen};
 use crate::context::Context;
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
+use tokio::fs;
 
 use xshell::{Shell, cmd};
 
@@ -18,10 +19,10 @@ pub enum BuildCommands {
 
 impl BuildCommands {
     pub async fn run(self, context: &Context, serve: bool) -> color_eyre::Result<()> {
-        clear_out_dir(context)?;
-        copy_public_dir(context)?;
+        clear_out_dir(&context.out_dir)?;
         match self {
             Self::Csr => {
+                copy_public_dir(context, &context.out_dir)?;
                 csr::build_index_html(context, serve)?;
                 let mut cargo_args = vec!["--target=wasm32-unknown-unknown"];
                 if context.cargo_features_contains_key("csr")? {
@@ -34,8 +35,14 @@ impl BuildCommands {
                 wasm_bindgen(context, &build_wasm_path(context)?, &context.out_dir).await?;
             }
             Self::Ssr(build_ssr_args) => {
+                let client_out_dir = context.out_dir.join("client");
+                let server_out_dir = context.out_dir.join("server");
+
+                fs::create_dir_all(&client_out_dir).await?;
+                copy_public_dir(context, &client_out_dir)?;
+
                 if !build_ssr_args.no_hydrate {
-                    hydrate::run(context).await?;
+                    hydrate::run(context, &client_out_dir).await?;
                 }
 
                 let mut cargo_args = vec!["--features=ssr"];
@@ -43,9 +50,11 @@ impl BuildCommands {
                     cargo_args.push("--release");
                 }
                 build(cargo_args)?;
+
+                fs::create_dir_all(&server_out_dir).await?;
             }
             Self::Hydrate => {
-                hydrate::run(context).await?;
+                hydrate::run(context, &context.out_dir).await?;
             }
         }
         color_eyre::Result::Ok(())

@@ -9,25 +9,23 @@ use std::{
 use wasm_bindgen_cli_support::Bindgen;
 use xshell::{Shell, cmd};
 
-pub fn clear_out_dir(context: &Context) -> color_eyre::Result<()> {
-    let out_dir = &context.out_dir;
-    if fs::exists(out_dir.clone())? {
-        fs::remove_dir_all(out_dir.clone())?;
+pub fn clear_out_dir(out_dir: &Path) -> color_eyre::Result<()> {
+    if fs::exists(out_dir)? {
+        fs::remove_dir_all(out_dir)?;
     }
     fs::create_dir_all(out_dir)?;
     color_eyre::Result::Ok(())
 }
 
-pub fn copy_public_dir(context: &Context) -> color_eyre::Result<()> {
+pub fn copy_public_dir(context: &Context, out_dir: &Path) -> color_eyre::Result<()> {
     if context.config.public_dir.is_empty() {
         return color_eyre::Result::Ok(());
     }
-    let new_public_dir = &context.out_dir;
 
     let public_dir = context.current_dir.join(context.config.public_dir.clone());
 
     if fs::exists(public_dir.clone())? {
-        copy_dir_all(public_dir, new_public_dir)?;
+        copy_dir_all(public_dir, out_dir)?;
     }
 
     color_eyre::Result::Ok(())
