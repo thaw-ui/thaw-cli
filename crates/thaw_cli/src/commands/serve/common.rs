@@ -9,17 +9,17 @@ use serde::Serialize;
 use std::fmt::Debug;
 use tokio::{
     sync::{broadcast, mpsc},
-    task::{self, JoinHandle},
+    task::{self, AbortHandle},
 };
 
 struct RunServeData {
-    join_handle: Option<JoinHandle<()>>,
+    join_handle: Option<Vec<AbortHandle>>,
     tx: Option<broadcast::Sender<()>>,
-    serve: Box<dyn Fn(broadcast::Sender<()>) -> JoinHandle<()> + Send + 'static>,
+    serve: Box<dyn Fn(broadcast::Sender<()>) -> Vec<AbortHandle> + Send + 'static>,
 }
 
 impl RunServeData {
-    fn new(serve: impl Fn(broadcast::Sender<()>) -> JoinHandle<()> + Send + 'static) -> Self {
+    fn new(serve: impl Fn(broadcast::Sender<()>) -> Vec<AbortHandle> + Send + 'static) -> Self {
         Self {
             join_handle: None,
             tx: None,
@@ -28,8 +28,10 @@ impl RunServeData {
     }
 
     fn abort(&mut self) {
-        if let Some(jh) = self.join_handle.take() {
-            jh.abort();
+        if let Some(jh_list) = self.join_handle.take() {
+            jh_list.into_iter().for_each(|jh| {
+                jh.abort();
+            });
             self.tx.take();
         }
     }
@@ -69,7 +71,7 @@ impl ServeEvent {
 }
 
 pub fn run_serve(
-    serve: impl Fn(broadcast::Sender<()>) -> JoinHandle<()> + Send + 'static,
+    serve: impl Fn(broadcast::Sender<()>) -> Vec<AbortHandle> + Send + 'static,
     mut serve_rx: mpsc::Receiver<ServeEvent>,
 ) {
     task::spawn(async move {

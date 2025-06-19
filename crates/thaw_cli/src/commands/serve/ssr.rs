@@ -1,6 +1,6 @@
 use super::common::{ServeEvent, THAW_CLI_WS_PATH, ThawCliWs, thaw_cli_ws};
 use crate::{
-    commands::build::{BuildCommands, BuildSsrArgs},
+    commands::build::{BuildCommands, BuildSsrArgs, build_exe_name},
     context::Context,
 };
 use axum::{
@@ -14,6 +14,7 @@ use tokio::{
     task,
 };
 use tower_http::{compression::CompressionLayer, services::ServeDir};
+use xshell::{Shell, cmd};
 
 pub fn build(
     context: Arc<Context>,
@@ -31,11 +32,22 @@ pub fn build(
     });
 }
 
+pub fn run_ssr_exe(context: Arc<Context>) -> color_eyre::Result<()> {
+    let sh = Shell::new()?;
+    let exe_path = context
+        .out_dir
+        .join("server")
+        .join(build_exe_name(&context)?);
+    cmd!(sh, "{exe_path}").run()?;
+
+    color_eyre::Result::Ok(())
+}
+
 pub async fn run_serve(context: Arc<Context>, tx: broadcast::Sender<()>) -> color_eyre::Result<()> {
     let state = ThawCliWs::new(tx);
     let out_dir = &context.out_dir;
 
-    let serve_dir = ServeDir::new(out_dir.clone())
+    let serve_dir = ServeDir::new(out_dir.join("client"))
         .precompressed_br()
         .precompressed_zstd()
         .precompressed_gzip()

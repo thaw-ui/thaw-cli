@@ -29,9 +29,12 @@ impl ServeCommands {
                         let context = context.clone();
                         move |tx| {
                             let context = context.clone();
-                            task::spawn(async {
+                            let handle = task::spawn(async {
                                 csr::run_serve(context, tx).await.unwrap();
                             })
+                            .abort_handle();
+
+                            vec![handle]
                         }
                     },
                     serve_rx,
@@ -43,10 +46,21 @@ impl ServeCommands {
                     {
                         let context = context.clone();
                         move |tx| {
+                            let exe_handle = task::spawn({
+                                let context = context.clone();
+                                async {
+                                    ssr::run_ssr_exe(context).unwrap();
+                                }
+                            })
+                            .abort_handle();
+
                             let context = context.clone();
-                            task::spawn(async {
+                            let serve_handle = task::spawn(async {
                                 ssr::run_serve(context, tx).await.unwrap();
                             })
+                            .abort_handle();
+
+                            vec![serve_handle, exe_handle]
                         }
                     },
                     serve_rx,

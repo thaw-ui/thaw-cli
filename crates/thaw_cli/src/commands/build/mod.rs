@@ -52,6 +52,11 @@ impl BuildCommands {
                 build(cargo_args)?;
 
                 fs::create_dir_all(&server_out_dir).await?;
+                fs::copy(
+                    build_exe_path(context)?,
+                    server_out_dir.join(build_exe_name(context)?),
+                )
+                .await?;
             }
             Self::Hydrate => {
                 hydrate::run(context, &context.out_dir).await?;
@@ -79,6 +84,28 @@ fn build_wasm_path(context: &Context) -> color_eyre::Result<PathBuf> {
         context.cargo_package_name()?
     ));
     color_eyre::Result::Ok(wasm_path)
+}
+
+fn build_exe_path(context: &Context) -> color_eyre::Result<PathBuf> {
+    let exe_name = build_exe_name(context)?;
+    let exe_path = context.target_dir.join(format!(
+        "{}/{}",
+        if context.config.release {
+            "release"
+        } else {
+            "debug"
+        },
+        exe_name
+    ));
+    color_eyre::Result::Ok(exe_path)
+}
+
+pub fn build_exe_name(context: &Context) -> color_eyre::Result<String> {
+    let mut exe_name = context.cargo_package_name()?;
+    if cfg!(windows) {
+        exe_name.push_str(".exe");
+    }
+    color_eyre::Result::Ok(exe_name)
 }
 
 #[derive(Debug, Args)]
