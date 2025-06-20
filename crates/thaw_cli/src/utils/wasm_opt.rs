@@ -52,6 +52,9 @@ async fn find_latest_binaryen_download_url() -> color_eyre::Result<(String, Stri
         .await?
         .json::<serde_json::Value>()
         .await?;
+    if let Some(message) = response.get("message").and_then(|message| message.as_str()) {
+        return color_eyre::Result::Err(eyre!("wasm-opt installation: {message}"));
+    }
 
     let tag_name = response
         .get("tag_name")

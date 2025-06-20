@@ -96,12 +96,12 @@ impl ThawCliWs {
 pub static THAW_CLI_WS_PATH: &str = "/__thaw_cli__";
 
 pub async fn thaw_cli_ws(ws: WebSocketUpgrade, State(state): State<ThawCliWs>) -> Response {
-    ws.on_upgrade(|socket| handle_thaw_cli_ws(socket, state))
+    ws.on_upgrade(move |socket| handle_thaw_cli_ws(socket, state.tx.clone()))
 }
 
-async fn handle_thaw_cli_ws(mut socket: WebSocket, state: ThawCliWs) {
+pub async fn handle_thaw_cli_ws(mut socket: WebSocket, tx: broadcast::Sender<()>) {
     let _ = socket.send(WsMessage::Connected.into()).await;
-    let mut rx = state.tx.subscribe();
+    let mut rx = tx.subscribe();
     task::spawn(async move {
         while (rx.recv().await).is_ok() {
             let _ = socket.send(WsMessage::RefreshPage.into()).await;
