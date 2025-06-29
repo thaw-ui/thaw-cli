@@ -1,4 +1,4 @@
-use super::common::{ServeEvent, THAW_CLI_WS_PATH, handle_thaw_cli_ws};
+use super::common::ServeEvent;
 use crate::{
     commands::build::{BuildCommands, BuildSsrArgs, build_exe_name},
     context::Context,
@@ -6,7 +6,10 @@ use crate::{
 use axum::{
     Router,
     body::Body,
-    extract::{Request, State, WebSocketUpgrade},
+    extract::{
+        Request, State, WebSocketUpgrade,
+        ws::{self, WebSocket},
+    },
     http::uri::Uri,
     response::{IntoResponse, Response},
     routing::get,
@@ -48,6 +51,13 @@ pub fn run_ssr_exe(context: Arc<Context>) -> color_eyre::Result<()> {
         .out_dir
         .join("server")
         .join(build_exe_name(&context)?);
+    sh.set_var("LEPTOS_OUTPUT_NAME", context.cargo_package_name()?);
+    sh.set_var("LEPTOS_SITE_PKG_DIR", "assets");
+    sh.set_var("LEPTOS_WATCH", "");
+    sh.set_var(
+        "LEPTOS_RELOAD_EXTERNAL_PORT",
+        context.config.server.port.to_string(),
+    );
     cmd!(sh, "{exe_path}").run()?;
 
     color_eyre::Result::Ok(())
@@ -62,8 +72,17 @@ pub struct AppState {
     client: Client,
 }
 
-async fn thaw_cli_ws(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
-    ws.on_upgrade(move |socket| handle_thaw_cli_ws(socket, state.tx.clone()))
+async fn cargo_leptos_ws(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
+    ws.on_upgrade(move |socket| handle_cargo_leptos_ws(socket, state.tx.clone()))
+}
+
+async fn handle_cargo_leptos_ws(mut socket: WebSocket, tx: broadcast::Sender<()>) {
+    let mut rx = tx.subscribe();
+    task::spawn(async move {
+        while (rx.recv().await).is_ok() {
+            let _ = socket.send(ws::Message::Text(r#"{"all":""}"#.into())).await;
+        }
+    });
 }
 
 pub async fn run_serve(context: Arc<Context>, tx: broadcast::Sender<()>) -> color_eyre::Result<()> {
@@ -88,7 +107,7 @@ pub async fn run_serve(context: Arc<Context>, tx: broadcast::Sender<()>) -> colo
     };
 
     let app = Router::new()
-        .route(THAW_CLI_WS_PATH, get(thaw_cli_ws))
+        .route("/live_reload", get(cargo_leptos_ws))
         .fallback(handler)
         .with_state(state)
         .layer(CompressionLayer::new());

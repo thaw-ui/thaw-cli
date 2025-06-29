@@ -16,4 +16,8 @@ pub mod build {
     pub fn default_out_dir() -> String {
         "dist".to_string()
     }
+
+    pub fn default_assets_dir() -> String {
+        "assets".to_string()
+    }
 }

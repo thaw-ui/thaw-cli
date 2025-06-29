@@ -53,12 +53,15 @@ impl Default for ServerConfig {
 pub struct BuildConfig {
     #[serde(default = "build::default_out_dir")]
     pub out_dir: String,
+    #[serde(default = "build::default_assets_dir")]
+    pub assets_dir: String,
 }
 
 impl Default for BuildConfig {
     fn default() -> Self {
         Self {
             out_dir: build::default_out_dir(),
+            assets_dir: build::default_assets_dir(),
         }
     }
 }

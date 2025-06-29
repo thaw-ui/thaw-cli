@@ -32,17 +32,21 @@ impl BuildCommands {
                     cargo_args.push("--release");
                 }
                 build(cargo_args)?;
-                wasm_bindgen(context, &build_wasm_path(context)?, &context.out_dir).await?;
+
+                let assets_dir = context.out_dir.join(&context.config.build.assets_dir);
+                fs::create_dir_all(&assets_dir).await?;
+                wasm_bindgen(context, &build_wasm_path(context)?, &assets_dir).await?;
             }
             Self::Ssr(build_ssr_args) => {
                 let client_out_dir = context.out_dir.join("client");
                 let server_out_dir = context.out_dir.join("server");
+                let assets_dir = client_out_dir.join(&context.config.build.assets_dir);
 
-                fs::create_dir_all(&client_out_dir).await?;
+                fs::create_dir_all(&assets_dir).await?;
                 copy_public_dir(context, &client_out_dir)?;
 
                 if !build_ssr_args.no_hydrate {
-                    hydrate::run(context, &client_out_dir).await?;
+                    hydrate::run(context, &assets_dir).await?;
                 }
 
                 let mut cargo_args = vec!["--features=ssr"];

@@ -10,8 +10,9 @@ pub fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()
     };
 
     let package_name = context.cargo_package_name()?;
+    let assets_path = &context.config.build.assets_dir;
     let mut import_script = format!(
-        r#"<script type="module">import init from '/{package_name}.js';await init({{ module_or_path: '/{package_name}_bg.wasm' }})</script>"#,
+        r#"<script type="module">import init from '/{assets_path}/{package_name}.js';await init({{ module_or_path: '/{assets_path}/{package_name}_bg.wasm' }})</script>"#,
     );
 
     if serve {
