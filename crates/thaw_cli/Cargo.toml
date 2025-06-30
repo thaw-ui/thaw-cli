@@ -3,6 +3,13 @@ name = "thaw_cli"
 version = "0.1.0"
 edition = "2024"
 
+keywords = ["leptos", "cli", "thaw"]
+authors = ["lizidev"]
+description = "Build tool for Leptos."
+homepage = "https://github.com/thaw-ui/thaw-cli"
+repository = "https://github.com/thaw-ui/thaw-cli"
+license = "MIT"
+
 [dependencies]
 wasm-bindgen-cli-support = "0.2.100"
 
