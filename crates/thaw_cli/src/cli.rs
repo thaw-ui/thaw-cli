@@ -1,3 +1,7 @@
+mod message;
+
+pub use message::{Message, PrintMessage};
+
 use crate::{commands::Commands, context::Context};
 use clap::Parser;
 

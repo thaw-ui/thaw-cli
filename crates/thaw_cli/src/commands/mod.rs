@@ -1,11 +1,11 @@
 mod build;
 mod serve;
 
-use crate::context::Context;
+use crate::{cli, context::Context};
 use build::BuildCommands;
 use clap::Subcommand;
 use serve::ServeCommands;
-use tokio::runtime;
+use tokio::{runtime, sync::mpsc, task};
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
@@ -16,12 +16,22 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn run(self, context: Context) -> color_eyre::Result<()> {
+    pub fn run(self, mut context: Context) -> color_eyre::Result<()> {
         let rt = runtime::Builder::new_multi_thread()
             .enable_io()
             .enable_time()
             .build()?;
         rt.block_on(async {
+            let (message_tx, mut message_rx) = mpsc::channel(1);
+            context.cli_tx = Some(message_tx);
+
+            task::spawn(async move {
+                let mut print_message = cli::PrintMessage::new();
+                while let Some(message) = message_rx.recv().await {
+                    print_message.print(message).unwrap();
+                }
+            });
+
             match self {
                 Self::Build(subcommmands) => {
                     subcommmands.run(&context, false).await?;
@@ -30,7 +40,7 @@ impl Commands {
                     subcommmands.run(context).await?;
                 }
             }
-            color_eyre::Result::Ok(())
+            Ok(())
         })
     }
 }

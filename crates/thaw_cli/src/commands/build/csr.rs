@@ -1,6 +1,10 @@
-use crate::context::Context;
+use crate::{cli, context::Context};
 use color_eyre::eyre::eyre;
-use std::{fs, io::Write};
+use std::{fs, io::Write, process::Stdio};
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
+};
 
 pub fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()> {
     let html_path = context.current_dir.join("index.html");
@@ -34,4 +38,72 @@ pub fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()
     }
 
     color_eyre::Result::Ok(())
+}
+
+pub async fn build_wasm(context: &Context, serve: bool) -> color_eyre::Result<()> {
+    let mut cmd = Command::new("cargo");
+
+    cmd.arg("build").arg("--target=wasm32-unknown-unknown");
+    if context.cargo_features_contains_key("csr") {
+        cmd.arg("--features=csr");
+    }
+    if context.config.release {
+        cmd.arg("--release");
+    }
+
+    cmd.arg("--message-format=json-diagnostic-rendered-ansi");
+
+    let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+
+    let stdout = BufReader::new(child.stdout.take().unwrap());
+    let stderr = BufReader::new(child.stderr.take().unwrap());
+
+    let mut stdout = stdout.lines();
+    let mut stderr = stderr.lines();
+
+    loop {
+        use cargo_metadata::Message;
+
+        let line = tokio::select! {
+            Ok(Some(line)) = stdout.next_line() => line,
+            Ok(Some(line)) = stderr.next_line() => line,
+            else => break,
+        };
+
+        let Some(Ok(message)) = Message::parse_stream(std::io::Cursor::new(line)).next() else {
+            continue;
+        };
+
+        let message = match message {
+            Message::CompilerArtifact(_artifact) => {
+                // TODO
+                None
+            }
+            Message::BuildScriptExecuted(_build_script) => {
+                // TODO
+                None
+            }
+            Message::CompilerMessage(compiler_message) => Some(cli::Message::CargoPackaging(
+                compiler_message.message.into(),
+            )),
+            Message::TextLine(value) => Some(cli::Message::CargoPackaging(value.into())),
+            Message::BuildFinished(build_finished) => {
+                if !build_finished.success {
+                    if serve {
+                        todo!()
+                    } else {
+                        return Err(eyre!("Cargo build failed"));
+                    }
+                }
+                Some(cli::Message::CargoBuildFinished)
+            }
+            _ => None,
+        };
+
+        if let Some(message) = message {
+            let _ = context.cli_tx.clone().unwrap().send(message).await;
+        }
+    }
+
+    Ok(())
 }

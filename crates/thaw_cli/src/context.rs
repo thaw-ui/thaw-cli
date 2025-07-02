@@ -1,8 +1,9 @@
-use crate::config::Config;
+use crate::{cli, config::Config};
 use cargo_manifest::Manifest;
 use cargo_metadata::MetadataCommand;
 use color_eyre::eyre::eyre;
 use std::path::{Path, PathBuf};
+use tokio::sync::mpsc;
 
 #[derive(Debug)]
 pub struct Context {
@@ -15,6 +16,8 @@ pub struct Context {
     pub(crate) wasm_bindgen_dir: PathBuf,
     pub(crate) out_dir: PathBuf,
     cargo_manifest: Manifest,
+
+    pub(crate) cli_tx: Option<mpsc::Sender<cli::Message>>,
 }
 
 impl Context {
@@ -45,6 +48,8 @@ impl Context {
             wasm_bindgen_dir,
             out_dir,
             cargo_manifest,
+
+            cli_tx: None,
         })
     }
 
@@ -66,11 +71,11 @@ impl Context {
         }
     }
 
-    pub(crate) fn cargo_features_contains_key(&self, key: &str) -> color_eyre::Result<bool> {
+    pub(crate) fn cargo_features_contains_key(&self, key: &str) -> bool {
         if let Some(features) = &self.cargo_manifest.features {
-            color_eyre::Result::Ok(features.contains_key(key))
+            features.contains_key(key)
         } else {
-            color_eyre::Result::Err(eyre!("Cargo.toml file not found"))
+            false
         }
     }
 }

@@ -28,7 +28,7 @@ pub async fn watch(context: Arc<Context>, build_tx: Sender<()>) -> color_eyre::R
                     _ => {}
                 }
             }
-            Err(e) => println!("watch error: {:?}", e),
+            Err(e) => println!("watch error: {e:?}"),
         }
     }
 

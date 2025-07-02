@@ -24,14 +24,7 @@ impl BuildCommands {
             Self::Csr => {
                 copy_public_dir(context, &context.out_dir)?;
                 csr::build_index_html(context, serve)?;
-                let mut cargo_args = vec!["--target=wasm32-unknown-unknown"];
-                if context.cargo_features_contains_key("csr")? {
-                    cargo_args.push("--features=csr");
-                }
-                if context.config.release {
-                    cargo_args.push("--release");
-                }
-                build(cargo_args)?;
+                csr::build_wasm(context, serve).await?;
 
                 let assets_dir = context.out_dir.join(&context.config.build.assets_dir);
                 fs::create_dir_all(&assets_dir).await?;
