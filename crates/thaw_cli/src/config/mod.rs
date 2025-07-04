@@ -55,6 +55,11 @@ pub struct BuildConfig {
     pub out_dir: String,
     #[serde(default = "build::default_assets_dir")]
     pub assets_dir: String,
+    /// Whether to enable manganis to collect assets from dependencies.
+    ///
+    /// Default: false
+    #[serde(default = "build::default_assets_manganis")]
+    pub assets_manganis: bool,
 }
 
 impl Default for BuildConfig {
@@ -62,6 +67,7 @@ impl Default for BuildConfig {
         Self {
             out_dir: build::default_out_dir(),
             assets_dir: build::default_assets_dir(),
+            assets_manganis: build::default_assets_manganis(),
         }
     }
 }

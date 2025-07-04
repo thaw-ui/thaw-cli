@@ -5,6 +5,7 @@ use crate::{
 use std::{
     fs,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 use wasm_bindgen_cli_support::Bindgen;
 use xshell::{Shell, cmd};
@@ -34,27 +35,25 @@ pub fn copy_public_dir(context: &Context, out_dir: &Path) -> color_eyre::Result<
 pub async fn wasm_bindgen(
     context: &Context,
     input_path: &PathBuf,
-    out_path: &Path,
+    out_dir: &Path,
 ) -> color_eyre::Result<()> {
+    if tokio::fs::try_exists(&context.wasm_bindgen_dir).await? {
+        tokio::fs::remove_dir_all(&context.wasm_bindgen_dir).await?;
+    }
     let mut bindgen = Bindgen::new();
     let bindgen = bindgen.input_path(input_path).web(true).dot_eyre()?;
-    bindgen
-        .generate(context.wasm_bindgen_dir.clone())
-        .dot_eyre()?;
+    bindgen.generate(&context.wasm_bindgen_dir).dot_eyre()?;
+
+    copy_dir_all(&context.wasm_bindgen_dir, out_dir)?;
 
     let package_name = context.cargo_package_name()?;
     let wasm_name = format!("{package_name}_bg.wasm");
-    let js_name = format!("{package_name}.js");
 
-    let wasm_path = context.wasm_bindgen_dir.join(wasm_name.clone());
-    let out_wasm_path = out_path.join(wasm_name);
+    let wasm_path = context.wasm_bindgen_dir.join(&wasm_name);
+    let out_wasm_path = out_dir.join(wasm_name);
     wasm_opt(&wasm_path, &out_wasm_path).await?;
 
-    let js_path = context.wasm_bindgen_dir.join(js_name.clone());
-    let out_js_path = out_path.join(js_name);
-    tokio::fs::copy(js_path, out_js_path).await?;
-
-    color_eyre::Result::Ok(())
+    Ok(())
 }
 
 async fn wasm_opt(input_path: &Path, out_path: &Path) -> color_eyre::Result<()> {
@@ -74,4 +73,33 @@ async fn wasm_opt(input_path: &Path, out_path: &Path) -> color_eyre::Result<()> 
     ];
     cmd!(sh, "{path} {args...}").run()?;
     color_eyre::Result::Ok(())
+}
+
+pub async fn build_assets(
+    context: &Context,
+    output_location: Option<PathBuf>,
+    out_dir: &Path,
+) -> color_eyre::Result<()> {
+    if !context.config.build.assets_manganis {
+        return Ok(());
+    }
+    use tokio::fs;
+    // use dioxus_cli_opt::process_file_to();
+    let exe = output_location.unwrap();
+    let manifest = crate::dx::assets::extract_assets_from_file(exe)?;
+
+    for bundled in manifest.assets() {
+        let absolute_source_path = PathBuf::from_str(bundled.absolute_source_path())?;
+        if !fs::try_exists(&absolute_source_path).await? {
+            // TODO
+            continue;
+        }
+        if absolute_source_path.is_dir() {
+            // TODO
+        } else {
+            fs::copy(absolute_source_path, out_dir.join(bundled.bundled_path())).await?;
+        }
+    }
+
+    Ok(())
 }

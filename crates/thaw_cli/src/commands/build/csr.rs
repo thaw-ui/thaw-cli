@@ -1,6 +1,6 @@
 use crate::{cli, context::Context};
 use color_eyre::eyre::eyre;
-use std::{fs, io::Write, process::Stdio};
+use std::{fs, io::Write, path::PathBuf, process::Stdio};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
@@ -40,7 +40,7 @@ pub fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()
     color_eyre::Result::Ok(())
 }
 
-pub async fn build_wasm(context: &Context, serve: bool) -> color_eyre::Result<()> {
+pub async fn build_wasm(context: &Context, serve: bool) -> color_eyre::Result<Option<PathBuf>> {
     let mut cmd = Command::new("cargo");
 
     cmd.arg("build").arg("--target=wasm32-unknown-unknown");
@@ -60,6 +60,7 @@ pub async fn build_wasm(context: &Context, serve: bool) -> color_eyre::Result<()
 
     let mut stdout = stdout.lines();
     let mut stderr = stderr.lines();
+    let mut output_location: Option<PathBuf> = None;
 
     loop {
         use cargo_metadata::Message;
@@ -75,8 +76,10 @@ pub async fn build_wasm(context: &Context, serve: bool) -> color_eyre::Result<()
         };
 
         let message = match message {
-            Message::CompilerArtifact(_artifact) => {
+            Message::CompilerArtifact(artifact) => {
                 // TODO
+
+                output_location = artifact.executable.map(Into::into);
                 None
             }
             Message::BuildScriptExecuted(_build_script) => {
@@ -105,5 +108,5 @@ pub async fn build_wasm(context: &Context, serve: bool) -> color_eyre::Result<()
         }
     }
 
-    Ok(())
+    Ok(output_location)
 }

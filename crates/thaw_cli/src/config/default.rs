@@ -20,4 +20,8 @@ pub mod build {
     pub fn default_assets_dir() -> String {
         "assets".to_string()
     }
+
+    pub fn default_assets_manganis() -> bool {
+        false
+    }
 }

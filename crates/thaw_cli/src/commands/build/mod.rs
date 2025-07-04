@@ -19,18 +19,20 @@ pub enum BuildCommands {
 
 impl BuildCommands {
     pub async fn run(self, context: &Context, serve: bool) -> color_eyre::Result<()> {
-        clear_out_dir(&context.out_dir)?;
         match self {
             Self::Csr => {
+                let wasm_path = csr::build_wasm(context, serve).await?;
+
+                clear_out_dir(&context.out_dir)?;
                 copy_public_dir(context, &context.out_dir)?;
                 csr::build_index_html(context, serve)?;
-                csr::build_wasm(context, serve).await?;
-
-                let assets_dir = context.out_dir.join(&context.config.build.assets_dir);
-                fs::create_dir_all(&assets_dir).await?;
-                wasm_bindgen(context, &build_wasm_path(context)?, &assets_dir).await?;
+                fs::create_dir_all(&context.assets_dir).await?;
+                common::build_assets(context, wasm_path, &context.assets_dir).await?;
+                wasm_bindgen(context, &build_wasm_path(context)?, &context.assets_dir).await?;
             }
             Self::Ssr(build_ssr_args) => {
+                clear_out_dir(&context.out_dir)?;
+
                 let client_out_dir = context.out_dir.join("client");
                 let server_out_dir = context.out_dir.join("server");
                 let assets_dir = client_out_dir.join(&context.config.build.assets_dir);
@@ -56,6 +58,7 @@ impl BuildCommands {
                 .await?;
             }
             Self::Hydrate => {
+                clear_out_dir(&context.out_dir)?;
                 hydrate::run(context, &context.out_dir).await?;
             }
         }

@@ -15,6 +15,7 @@ pub struct Context {
     pub(crate) target_dir: PathBuf,
     pub(crate) wasm_bindgen_dir: PathBuf,
     pub(crate) out_dir: PathBuf,
+    pub(crate) assets_dir: PathBuf,
     cargo_manifest: Manifest,
 
     pub(crate) cli_tx: Option<mpsc::Sender<cli::Message>>,
@@ -41,12 +42,16 @@ impl Context {
         } else {
             current_dir.join(config.build.out_dir.clone())
         };
+
+        let assets_dir = out_dir.join(&config.build.assets_dir);
+
         color_eyre::Result::Ok(Self {
             config,
             current_dir,
             target_dir,
             wasm_bindgen_dir,
             out_dir,
+            assets_dir,
             cargo_manifest,
 
             cli_tx: None,
