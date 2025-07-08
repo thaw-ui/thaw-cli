@@ -4,10 +4,12 @@ mod ssr;
 mod watch;
 
 use self::common::ServeEvent;
-use crate::context::Context;
+use crate::{cli, context::Context};
 use clap::Subcommand;
-use std::sync::Arc;
-use tokio::{sync::mpsc, task};
+use color_eyre::owo_colors::OwoColorize;
+use crossterm::style::Stylize;
+use std::{path::PathBuf, sync::Arc};
+use tokio::{sync::mpsc, task, time};
 
 #[derive(Debug, Subcommand)]
 pub enum ServeCommands {
@@ -18,12 +20,11 @@ pub enum ServeCommands {
 impl ServeCommands {
     pub async fn run(self, context: Context) -> color_eyre::Result<()> {
         let context = Arc::new(context);
-        let (build_tx, build_rx) = mpsc::channel::<()>(1);
-        let (serve_tx, serve_rx) = mpsc::channel::<ServeEvent>(1);
+        let (build_tx, build_rx) = mpsc::channel::<Vec<PathBuf>>(10);
+        let (serve_tx, serve_rx) = mpsc::channel::<ServeEvent>(10);
 
         match self {
             ServeCommands::Csr => {
-                csr::build(context.clone(), build_rx, serve_tx);
                 common::run_serve(
                     {
                         let context = context.clone();
@@ -39,9 +40,10 @@ impl ServeCommands {
                     },
                     serve_rx,
                 );
+                csr::build(&context, &serve_tx).await?;
+                csr::watch_build(context.clone(), build_rx, serve_tx);
             }
             ServeCommands::Ssr => {
-                ssr::build(context.clone(), build_rx, serve_tx);
                 common::run_serve(
                     {
                         let context = context.clone();
@@ -65,11 +67,35 @@ impl ServeCommands {
                     },
                     serve_rx,
                 );
+                ssr::build(&context, &serve_tx).await?;
+                ssr::watch_build(context.clone(), build_rx, serve_tx);
             }
-        }
-        build_tx.send(()).await.unwrap();
-        watch::watch(context, build_tx).await.unwrap();
+        };
 
-        color_eyre::Result::Ok(())
+        context.cli_tx.send(cli::Message::InitBuildFinished).await?;
+        let time = ((time::Instant::now().elapsed().as_secs_f32()
+            - context.init_start_time.elapsed().as_secs_f32())
+            * 100.0)
+            .abs()
+            .round()
+            / 100.0;
+        println!(
+            "\n\n  {}  ready in {}s\n",
+            format!("Thaw CLI v{}", context.create_version).green(),
+            time.bold()
+        );
+        println!(
+            "  {}  {}: {}",
+            "➜".green(),
+            "Local".bold(),
+            format!(
+                "http://{}:{}",
+                context.config.server.host, context.config.server.port,
+            )
+            .cyan()
+        );
+
+        watch::watch(context, build_tx).await?;
+        Ok(())
     }
 }

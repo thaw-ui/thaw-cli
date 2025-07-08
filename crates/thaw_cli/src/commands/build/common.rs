@@ -7,8 +7,8 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
+use tokio::process::Command;
 use wasm_bindgen_cli_support::Bindgen;
-use xshell::{Shell, cmd};
 
 pub fn clear_out_dir(out_dir: &Path) -> color_eyre::Result<()> {
     if fs::exists(out_dir)? {
@@ -58,7 +58,6 @@ pub async fn wasm_bindgen(
 
 async fn wasm_opt(input_path: &Path, out_path: &Path) -> color_eyre::Result<()> {
     let path = wasm_opt_bin_path().await?;
-    let sh = Shell::new()?;
     // wasm_opt::OptimizationOptions::new_optimize_for_size_aggressively()
     let args = vec![
         input_path.to_str().unwrap(),
@@ -71,8 +70,10 @@ async fn wasm_opt(input_path: &Path, out_path: &Path) -> color_eyre::Result<()> 
         "--enable-nontrapping-float-to-int",
         "--debuginfo",
     ];
-    cmd!(sh, "{path} {args...}").run()?;
-    color_eyre::Result::Ok(())
+
+    Command::new(path).args(args).spawn()?.wait().await?;
+
+    Ok(())
 }
 
 pub async fn build_assets(

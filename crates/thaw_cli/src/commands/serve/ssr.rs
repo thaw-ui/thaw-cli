@@ -29,18 +29,25 @@ use xshell::{Shell, cmd};
 
 type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
 
-pub fn build(
+pub async fn build(
+    context: &Arc<Context>,
+    serve_tx: &mpsc::Sender<ServeEvent>,
+) -> color_eyre::Result<()> {
+    BuildCommands::Ssr(BuildSsrArgs { no_hydrate: false })
+        .run(&context, true)
+        .await?;
+    serve_tx.send(ServeEvent::RefreshPage).await?;
+    Ok(())
+}
+
+pub fn watch_build(
     context: Arc<Context>,
-    mut build_rx: mpsc::Receiver<()>,
+    mut build_rx: mpsc::Receiver<Vec<PathBuf>>,
     serve_tx: mpsc::Sender<ServeEvent>,
 ) {
     task::spawn(async move {
         while (build_rx.recv().await).is_some() {
-            BuildCommands::Ssr(BuildSsrArgs { no_hydrate: false })
-                .run(&context, true)
-                .await
-                .unwrap();
-            serve_tx.send(ServeEvent::RefreshPage).await.unwrap();
+            build(&context, &serve_tx).await.unwrap();
         }
     });
 }

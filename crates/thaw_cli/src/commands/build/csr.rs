@@ -8,6 +8,11 @@ use tokio::{
 
 pub fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()> {
     let html_path = context.current_dir.join("index.html");
+    if !fs::exists(&html_path)? {
+        return Err(eyre!(
+            "No index.html file was found in the root directory. Location: {html_path:?}"
+        ));
+    }
     let mut html_str = fs::read_to_string(html_path)?;
     let Some(body_end_index) = html_str.find("</body>") else {
         return color_eyre::Result::Err(eyre!("No end tag found for body"));
@@ -93,7 +98,8 @@ pub async fn build_wasm(context: &Context, serve: bool) -> color_eyre::Result<Op
             Message::BuildFinished(build_finished) => {
                 if !build_finished.success {
                     if serve {
-                        todo!()
+                        // todo!()
+                        return Err(eyre!("Cargo build failed"));
                     } else {
                         return Err(eyre!("Cargo build failed"));
                     }
@@ -104,7 +110,7 @@ pub async fn build_wasm(context: &Context, serve: bool) -> color_eyre::Result<Op
         };
 
         if let Some(message) = message {
-            let _ = context.cli_tx.clone().unwrap().send(message).await;
+            let _ = context.cli_tx.send(message).await;
         }
     }
 

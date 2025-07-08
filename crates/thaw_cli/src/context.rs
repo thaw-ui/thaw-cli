@@ -3,7 +3,7 @@ use cargo_manifest::Manifest;
 use cargo_metadata::MetadataCommand;
 use color_eyre::eyre::eyre;
 use std::path::{Path, PathBuf};
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, time};
 
 #[derive(Debug)]
 pub struct Context {
@@ -17,12 +17,19 @@ pub struct Context {
     pub(crate) out_dir: PathBuf,
     pub(crate) assets_dir: PathBuf,
     cargo_manifest: Manifest,
-
-    pub(crate) cli_tx: Option<mpsc::Sender<cli::Message>>,
+    pub(crate) create_version: &'static str,
+    pub(crate) cli_tx: mpsc::Sender<cli::Message>,
+    pub(crate) init_start_time: time::Instant,
 }
 
 impl Context {
-    pub fn new(config: Config, current_dir: PathBuf, serve: bool) -> color_eyre::Result<Self> {
+    pub fn new(
+        config: Config,
+        current_dir: PathBuf,
+        cli_tx: mpsc::Sender<cli::Message>,
+        init_start_time: time::Instant,
+        serve: bool,
+    ) -> color_eyre::Result<Self> {
         let cargo_manifest = Manifest::from_path(current_dir.join("Cargo.toml"))?;
         let package_name = Self::package_name(&cargo_manifest, &current_dir)?;
 
@@ -53,8 +60,9 @@ impl Context {
             out_dir,
             assets_dir,
             cargo_manifest,
-
-            cli_tx: None,
+            create_version: env!("CARGO_PKG_VERSION"),
+            cli_tx,
+            init_start_time,
         })
     }
 

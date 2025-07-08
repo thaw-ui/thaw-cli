@@ -18,7 +18,6 @@ color-eyre = "0.6"
 anyhow = "1.0"
 xshell = "0.2"
 crossterm = "0.29"
-colored = "3.0"
 
 toml = "0.8"
 serde = { version = "1.0", features = ["derive"] }
@@ -35,11 +34,12 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "compression-full"] }
 reqwest = { version = "0.12", features = ["json"] }
 
-notify = "8.0"
+notify-debouncer-full = "0.5"
 dirs = "6.0"
 which = "8.0"
 tar = "0.4"
 flate2 = "1.1"
+chrono = "0.4.41"
 
 dioxus-cli-opt = "=0.7.0-alpha.2"
 manganis = "=0.7.0-alpha.2"

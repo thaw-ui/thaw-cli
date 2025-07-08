@@ -1,20 +1,27 @@
-use std::env;
-
 use clap::Parser;
+use std::env;
 use thaw_cli::{Cli, config::Config, context::Context};
+use tokio::time;
 
-fn main() -> color_eyre::Result<()> {
+#[tokio::main]
+async fn main() -> color_eyre::Result<()> {
+    let init_start_time = time::Instant::now();
+
     let cli = Cli::parse();
-    println!("{cli:#?}");
 
     let current_dir = env::current_dir()?;
 
     let config_path = current_dir.join("Thaw.toml");
     let config = Config::parse(config_path, false)?;
-    println!("{config:#?}");
 
-    let context = Context::new(config, current_dir, cli.is_serve())?;
-    println!("{context:#?}");
+    let message_tx = Cli::watch_message(current_dir.clone());
+    let context = Context::new(
+        config,
+        current_dir,
+        message_tx,
+        init_start_time,
+        cli.is_serve(),
+    )?;
 
-    cli.run(context)
+    cli.run(context).await
 }

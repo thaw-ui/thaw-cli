@@ -1,10 +1,10 @@
 use super::common::{ServeEvent, THAW_CLI_WS_PATH, ThawCliWs, thaw_cli_ws};
-use crate::{commands::build::BuildCommands, context::Context};
+use crate::{cli, commands::build::BuildCommands, context::Context};
 use axum::{
     Router,
     routing::{get, get_service},
 };
-use std::sync::Arc;
+use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 use tokio::{
     net::TcpListener,
     sync::{broadcast, mpsc},
@@ -15,17 +15,42 @@ use tower_http::{
     services::{ServeDir, ServeFile},
 };
 
-pub fn build(
+pub async fn build(
+    context: &Arc<Context>,
+    serve_tx: &mpsc::Sender<ServeEvent>,
+) -> color_eyre::Result<()> {
+    BuildCommands::Csr.run(context, true).await?;
+    serve_tx.send(ServeEvent::RefreshPage).await?;
+    Ok(())
+}
+
+pub fn watch_build(
     context: Arc<Context>,
-    mut build_rx: mpsc::Receiver<()>,
+    mut build_rx: mpsc::Receiver<Vec<PathBuf>>,
     serve_tx: mpsc::Sender<ServeEvent>,
 ) {
     task::spawn({
         let context = context.clone();
         async move {
-            while (build_rx.recv().await).is_some() {
-                BuildCommands::Csr.run(&context, true).await.unwrap();
-                serve_tx.send(ServeEvent::RefreshPage).await.unwrap();
+            let mut paths_batch = vec![];
+            while let Some(mut paths) = build_rx.recv().await {
+                paths_batch.append(&mut paths);
+                while let Ok(mut paths) = build_rx.try_recv() {
+                    paths_batch.append(&mut paths);
+                }
+
+                let build_result = build(&context, &serve_tx).await;
+
+                let paths = paths_batch
+                    .drain(..)
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect();
+                context
+                    .cli_tx
+                    .send(cli::Message::PageReload(paths, build_result))
+                    .await
+                    .unwrap();
             }
         }
     });
