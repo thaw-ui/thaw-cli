@@ -1,4 +1,7 @@
-use super::common::ServeEvent;
+use super::{
+    common::{self, ServeEvent},
+    watch,
+};
 use crate::{
     commands::build::{BuildCommands, BuildSsrArgs, build_exe_name},
     context::Context,
@@ -21,7 +24,7 @@ use tokio::{
     fs,
     net::TcpListener,
     sync::{broadcast, mpsc},
-    task,
+    task::{self, JoinHandle},
 };
 use tower::ServiceExt;
 use tower_http::{compression::CompressionLayer, services::ServeDir};
@@ -34,22 +37,38 @@ pub async fn build(
     serve_tx: &mpsc::Sender<ServeEvent>,
 ) -> color_eyre::Result<()> {
     BuildCommands::Ssr(BuildSsrArgs { no_hydrate: false })
-        .run(&context, true)
+        .run(context, true)
         .await?;
     serve_tx.send(ServeEvent::RefreshPage).await?;
     Ok(())
 }
 
-pub fn watch_build(
-    context: Arc<Context>,
-    mut build_rx: mpsc::Receiver<Vec<PathBuf>>,
-    serve_tx: mpsc::Sender<ServeEvent>,
-) {
-    task::spawn(async move {
-        while (build_rx.recv().await).is_some() {
-            build(&context, &serve_tx).await.unwrap();
-        }
-    });
+pub struct WatchBuild {
+    pub context: Arc<Context>,
+    pub serve_tx: mpsc::Sender<ServeEvent>,
+}
+
+impl watch::WatchBuild for WatchBuild {
+    async fn build(&self) -> color_eyre::Result<()> {
+        build(&self.context, &self.serve_tx).await
+    }
+}
+
+pub struct RunServe(pub Arc<Context>);
+
+impl common::RunServe for RunServe {
+    fn run(&self, page_tx: broadcast::Sender<()>) -> Vec<JoinHandle<color_eyre::Result<()>>> {
+        vec![
+            task::spawn({
+                let context = self.0.clone();
+                async { run_ssr_exe(context) }
+            }),
+            task::spawn({
+                let context = self.0.clone();
+                async { run_serve(context, page_tx).await }
+            }),
+        ]
+    }
 }
 
 pub fn run_ssr_exe(context: Arc<Context>) -> color_eyre::Result<()> {

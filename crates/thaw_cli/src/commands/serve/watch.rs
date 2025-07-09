@@ -1,44 +1,61 @@
-use crate::context::Context;
+use crate::{cli, context::Context};
 use notify_debouncer_full::{
-    DebounceEventResult, new_debouncer,
-    notify::{EventKind, RecursiveMode},
+    DebounceEventResult, Debouncer, FileIdMap, new_debouncer,
+    notify::{EventKind, ReadDirectoryChangesWatcher},
 };
-use std::{path::PathBuf, sync::Arc, time::Duration};
-use tokio::sync::mpsc::{Sender, channel};
+use std::{collections::BTreeSet, path::PathBuf, sync::Arc, time::Duration};
+use tokio::{sync::mpsc, task};
 
-pub async fn watch(
+pub trait WatchBuild {
+    fn build(&self) -> impl Future<Output = color_eyre::Result<()>> + Send;
+}
+
+pub fn watch_file_and_rebuild(
     context: Arc<Context>,
-    build_tx: Sender<Vec<PathBuf>>,
-) -> color_eyre::Result<()> {
-    let (tx, mut rx) = channel(10);
+    build: impl WatchBuild + Send + 'static,
+) -> color_eyre::Result<Debouncer<ReadDirectoryChangesWatcher, FileIdMap>> {
+    let (build_tx, mut build_rx) = mpsc::channel::<Vec<PathBuf>>(240);
 
-    let mut watcher = new_debouncer(
+    let watcher = new_debouncer(
         Duration::from_millis(500),
         None,
-        move |result: DebounceEventResult| {
-            tx.blocking_send(result).unwrap();
-        },
-    )?;
-
-    let src_dir = context.current_dir.join("src");
-    watcher.watch(&src_dir, RecursiveMode::Recursive)?;
-
-    while let Some(result) = rx.recv().await {
-        match result {
+        move |result: DebounceEventResult| match result {
             Ok(events) => {
                 let paths = events
                     .into_iter()
                     .filter(|e| matches!(e.kind, EventKind::Create(_) | EventKind::Modify(_)))
-                    .map(|e| e.event.paths)
-                    .flatten()
+                    .flat_map(|e| e.event.paths)
                     .collect::<Vec<_>>();
                 if !paths.is_empty() {
-                    build_tx.send(paths).await.unwrap();
+                    build_tx.blocking_send(paths).unwrap();
                 }
             }
             Err(e) => println!("watch error: {e:?}"),
-        }
-    }
+        },
+    )?;
 
-    Ok(())
+    task::spawn(async move {
+        let mut paths_batch = vec![];
+        while let Some(mut paths) = build_rx.recv().await {
+            paths_batch.append(&mut paths);
+            while let Ok(mut paths) = build_rx.try_recv() {
+                paths_batch.append(&mut paths);
+            }
+
+            let build_result = build.build().await;
+
+            let paths = paths_batch
+                .drain(..)
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect();
+            context
+                .cli_tx
+                .send(cli::Message::PageReload(paths, build_result))
+                .await
+                .unwrap();
+        }
+    });
+
+    Ok(watcher)
 }

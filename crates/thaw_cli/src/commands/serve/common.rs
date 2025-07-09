@@ -8,21 +8,25 @@ use axum::{
 use serde::Serialize;
 use std::fmt::Debug;
 use tokio::{
-    sync::{broadcast, mpsc},
-    task::{self, AbortHandle},
+    sync::broadcast,
+    task::{self, JoinHandle},
 };
 
-struct RunServeData {
-    join_handle: Option<Vec<AbortHandle>>,
-    tx: Option<broadcast::Sender<()>>,
-    serve: Box<dyn Fn(broadcast::Sender<()>) -> Vec<AbortHandle> + Send + 'static>,
+pub trait RunServe {
+    fn run(&self, page_tx: broadcast::Sender<()>) -> Vec<JoinHandle<color_eyre::Result<()>>>;
+}
+
+pub struct RunServeData {
+    join_handle: Option<Vec<JoinHandle<color_eyre::Result<()>>>>,
+    pub page_tx: Option<broadcast::Sender<()>>,
+    serve: Box<dyn RunServe>,
 }
 
 impl RunServeData {
-    fn new(serve: impl Fn(broadcast::Sender<()>) -> Vec<AbortHandle> + Send + 'static) -> Self {
+    pub fn new(serve: impl RunServe + 'static) -> Self {
         Self {
             join_handle: None,
-            tx: None,
+            page_tx: None,
             serve: Box::new(serve),
         }
     }
@@ -32,54 +36,25 @@ impl RunServeData {
             jh_list.into_iter().for_each(|jh| {
                 jh.abort();
             });
-            self.tx.take();
+            self.page_tx.take();
         }
     }
 
-    fn run_serve(&mut self) {
+    pub fn run_serve(&mut self) {
         self.abort();
 
         let (tx, _) = broadcast::channel(10);
-        let jh = (self.serve)(tx.clone());
+        let jh = self.serve.run(tx.clone());
 
         self.join_handle = Some(jh);
-        self.tx = Some(tx);
+        self.page_tx = Some(tx);
     }
 }
 
 #[derive(Debug)]
 pub enum ServeEvent {
-    Restart,
+    // Restart,
     RefreshPage,
-}
-
-impl ServeEvent {
-    fn run(self, data: &mut RunServeData) {
-        match self {
-            ServeEvent::Restart => {
-                data.run_serve();
-            }
-            ServeEvent::RefreshPage => {
-                if let Some(tx) = &data.tx {
-                    let _ = tx.send(());
-                } else {
-                    ServeEvent::Restart.run(data);
-                }
-            }
-        }
-    }
-}
-
-pub fn run_serve(
-    serve: impl Fn(broadcast::Sender<()>) -> Vec<AbortHandle> + Send + 'static,
-    mut serve_rx: mpsc::Receiver<ServeEvent>,
-) {
-    task::spawn(async move {
-        let mut data = RunServeData::new(serve);
-        while let Some(event) = serve_rx.recv().await {
-            event.run(&mut data);
-        }
-    });
 }
 
 #[derive(Debug, Clone)]
