@@ -1,5 +1,5 @@
 use super::{
-    common::{self, ServeEvent},
+    common::{self, ServeEvent, handle_thaw_cli_ws},
     watch,
 };
 use crate::{
@@ -9,10 +9,7 @@ use crate::{
 use axum::{
     Router,
     body::Body,
-    extract::{
-        Request, State, WebSocketUpgrade,
-        ws::{self, WebSocket},
-    },
+    extract::{Request, State, WebSocketUpgrade},
     http::uri::Uri,
     response::{IntoResponse, Response},
     routing::get,
@@ -99,16 +96,7 @@ pub struct AppState {
 }
 
 async fn cargo_leptos_ws(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
-    ws.on_upgrade(move |socket| handle_cargo_leptos_ws(socket, state.tx.clone()))
-}
-
-async fn handle_cargo_leptos_ws(mut socket: WebSocket, tx: broadcast::Sender<()>) {
-    let mut rx = tx.subscribe();
-    task::spawn(async move {
-        while (rx.recv().await).is_ok() {
-            let _ = socket.send(ws::Message::Text(r#"{"all":""}"#.into())).await;
-        }
-    });
+    ws.on_upgrade(move |socket| handle_thaw_cli_ws(socket, state.tx.clone(), true))
 }
 
 pub async fn run_serve(context: Arc<Context>, tx: broadcast::Sender<()>) -> color_eyre::Result<()> {
