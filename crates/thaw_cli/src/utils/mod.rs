@@ -1,5 +1,6 @@
 mod copy_dir_all;
 mod dot_eyre;
+pub mod fs;
 mod wasm_opt;
 
 pub use copy_dir_all::copy_dir_all;

@@ -3,34 +3,11 @@ use crate::{
     utils::{DotEyre, copy_dir_all, wasm_opt_bin_path},
 };
 use std::{
-    fs,
     path::{Path, PathBuf},
     str::FromStr,
 };
 use tokio::process::Command;
 use wasm_bindgen_cli_support::Bindgen;
-
-pub fn clear_out_dir(out_dir: &Path) -> color_eyre::Result<()> {
-    if fs::exists(out_dir)? {
-        fs::remove_dir_all(out_dir)?;
-    }
-    fs::create_dir_all(out_dir)?;
-    color_eyre::Result::Ok(())
-}
-
-pub fn copy_public_dir(context: &Context, out_dir: &Path) -> color_eyre::Result<()> {
-    if context.config.public_dir.is_empty() {
-        return color_eyre::Result::Ok(());
-    }
-
-    let public_dir = context.current_dir.join(context.config.public_dir.clone());
-
-    if fs::exists(public_dir.clone())? {
-        copy_dir_all(public_dir, out_dir)?;
-    }
-
-    color_eyre::Result::Ok(())
-}
 
 pub async fn wasm_bindgen(
     context: &Context,

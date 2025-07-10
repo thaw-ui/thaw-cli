@@ -78,12 +78,11 @@ pub async fn thaw_cli_ws(ws: WebSocketUpgrade, State(state): State<ThawCliWs>) -
 }
 
 pub async fn handle_thaw_cli_ws(socket: WebSocket, tx: broadcast::Sender<()>, cargo_leptos: bool) {
-    if let Some(protocol) = socket.protocol() {
-        if let Ok(protocol) = protocol.to_str() {
-            if protocol == "thaw-cli-ping" {
-                return;
-            }
-        }
+    if let Some(protocol) = socket.protocol()
+        && let Ok(protocol) = protocol.to_str()
+        && protocol == "thaw-cli-ping"
+    {
+        return;
     }
     let mut rx = tx.subscribe();
     let (mut sender, mut receiver) = socket.split();
