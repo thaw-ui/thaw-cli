@@ -1,9 +1,7 @@
-mod copy_dir_all;
 mod dot_eyre;
 pub mod fs;
 mod wasm_opt;
 
-pub use copy_dir_all::copy_dir_all;
 pub use dot_eyre::DotEyre;
 pub use wasm_opt::wasm_opt_bin_path;
 

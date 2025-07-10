@@ -1,6 +1,4 @@
-use crate::utils::copy_dir_all;
-
-use super::{thaw_cli_cache_dir, thaw_cli_home_dir};
+use super::{fs::copy_dir_all, thaw_cli_cache_dir, thaw_cli_home_dir};
 use color_eyre::eyre::eyre;
 use flate2::read;
 use std::path::PathBuf;
@@ -22,7 +20,7 @@ pub async fn wasm_opt_bin_path() -> color_eyre::Result<PathBuf> {
             archive.unpack(cache_dir.clone())?;
 
             let dir_path = cache_dir.join(dir_name);
-            copy_dir_all(dir_path.clone(), install_dir)?;
+            copy_dir_all(dir_path.clone(), install_dir).await?;
             fs::remove_dir_all(dir_path).await?;
         }
         color_eyre::Result::Ok(install_path)

@@ -7,7 +7,7 @@ use crate::{
     build::{clear_out_dir, copy_public_dir},
     context::Context,
 };
-use clap::{Args, Subcommand};
+use clap::Subcommand;
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -16,8 +16,7 @@ use xshell::{Shell, cmd};
 #[derive(Debug, Subcommand)]
 pub enum BuildCommands {
     Csr,
-    Ssr(BuildSsrArgs),
-    Hydrate,
+    Ssr,
 }
 
 impl BuildCommands {
@@ -33,7 +32,7 @@ impl BuildCommands {
                 common::build_assets(context, wasm_path, &context.assets_dir).await?;
                 wasm_bindgen(context, &build_wasm_path(context)?, &context.assets_dir).await?;
             }
-            Self::Ssr(build_ssr_args) => {
+            Self::Ssr => {
                 clear_out_dir(context).await?;
 
                 let client_out_dir = context.out_dir.join("client");
@@ -43,9 +42,7 @@ impl BuildCommands {
                 fs::create_dir_all(&assets_dir).await?;
                 copy_public_dir(context).await?;
 
-                if !build_ssr_args.no_hydrate {
-                    hydrate::run(context, &assets_dir).await?;
-                }
+                hydrate::run(context, &assets_dir).await?;
 
                 let mut cargo_args = vec!["--features=ssr"];
                 if context.config.release {
@@ -59,10 +56,6 @@ impl BuildCommands {
                     server_out_dir.join(build_exe_name(context)?),
                 )
                 .await?;
-            }
-            Self::Hydrate => {
-                clear_out_dir(context).await?;
-                hydrate::run(context, &context.out_dir).await?;
             }
         }
         color_eyre::Result::Ok(())
@@ -109,10 +102,4 @@ pub fn build_exe_name(context: &Context) -> color_eyre::Result<String> {
         exe_name.push_str(".exe");
     }
     color_eyre::Result::Ok(exe_name)
-}
-
-#[derive(Debug, Args)]
-pub struct BuildSsrArgs {
-    #[arg(long, action=clap::ArgAction::SetTrue, default_value_t=false, default_missing_value="true")]
-    pub no_hydrate: bool,
 }

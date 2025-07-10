@@ -3,7 +3,7 @@ use super::{
     watch,
 };
 use crate::{
-    commands::build::{BuildCommands, BuildSsrArgs, build_exe_name},
+    commands::build::{BuildCommands, build_exe_name},
     context::Context,
 };
 use axum::{
@@ -33,9 +33,7 @@ pub async fn build(
     context: &Arc<Context>,
     serve_tx: &mpsc::Sender<ServeEvent>,
 ) -> color_eyre::Result<()> {
-    BuildCommands::Ssr(BuildSsrArgs { no_hydrate: false })
-        .run(context, true)
-        .await?;
+    BuildCommands::Ssr.run(context, true).await?;
     serve_tx.send(ServeEvent::RefreshPage).await?;
     Ok(())
 }

@@ -1,6 +1,6 @@
 use crate::{
     context::Context,
-    utils::{DotEyre, copy_dir_all, wasm_opt_bin_path},
+    utils::{DotEyre, fs::copy_dir_all, wasm_opt_bin_path},
 };
 use std::{
     path::{Path, PathBuf},
@@ -21,7 +21,7 @@ pub async fn wasm_bindgen(
     let bindgen = bindgen.input_path(input_path).web(true).dot_eyre()?;
     bindgen.generate(&context.wasm_bindgen_dir).dot_eyre()?;
 
-    copy_dir_all(&context.wasm_bindgen_dir, out_dir)?;
+    copy_dir_all(&context.wasm_bindgen_dir, out_dir).await?;
 
     let package_name = context.cargo_package_name()?;
     let wasm_name = format!("{package_name}_bg.wasm");
