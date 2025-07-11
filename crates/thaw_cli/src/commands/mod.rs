@@ -5,6 +5,7 @@ use crate::context::Context;
 use build::BuildCommands;
 use clap::Subcommand;
 use serve::ServeCommands;
+use std::sync::Arc;
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
@@ -18,6 +19,7 @@ impl Commands {
     pub async fn run(self, context: Context) -> color_eyre::Result<()> {
         match self {
             Self::Build(subcommmands) => {
+                let context = Arc::new(context);
                 subcommmands.run(&context, false).await?;
             }
             Self::Serve(subcommmands) => {

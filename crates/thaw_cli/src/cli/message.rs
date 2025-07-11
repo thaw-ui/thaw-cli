@@ -12,9 +12,10 @@ use std::{
 
 #[derive(Debug)]
 pub enum Message {
-    InitBuildFinished,
     CargoPackaging(CargoPackagingMessage),
     CargoBuildFinished,
+    Build(String),
+    InitBuildFinished,
     PageReload(Vec<PathBuf>, color_eyre::Result<()>),
 }
 
@@ -61,10 +62,18 @@ impl Message {
                 Self::CargoBuildFinished,
                 Self::CargoPackaging(CargoPackagingMessage::Finished(_)),
             )
+            | (
+                Self::CargoPackaging(CargoPackagingMessage::Finished(_)),
+                Self::Build(_),
+            )
+            | (
+                Self::Build(_),
+                Self::Build(_),
+            )
             // Finished
             // PageReload
             | (
-                Self::CargoPackaging(CargoPackagingMessage::Finished(_)),
+                Self::Build(_),
                 Self::PageReload(_, _),
             )=> true,
             (Self::CargoBuildFinished, Self::CargoBuildFinished) => unreachable!(),
@@ -172,6 +181,9 @@ impl PrintMessage {
 
         match &message {
             Message::CargoPackaging(message) => {
+                self.stdout.execute(style::Print(message))?;
+            }
+            Message::Build(message) => {
                 self.stdout.execute(style::Print(message))?;
             }
             Message::PageReload(paths, build_result) => {

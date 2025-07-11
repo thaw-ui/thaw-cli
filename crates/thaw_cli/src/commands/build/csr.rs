@@ -6,7 +6,12 @@ use tokio::{
     process::Command,
 };
 
-pub fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()> {
+pub async fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()> {
+    context
+        .cli_tx
+        .send(cli::Message::Build("Packaging index.html file".to_string()))
+        .await?;
+
     let html_path = context.current_dir.join("index.html");
     if !fs::exists(&html_path)? {
         return Err(eyre!(
@@ -42,7 +47,7 @@ pub fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()
         file.write_all(include_str!("./__thaw_cli__.js").as_bytes())?;
     }
 
-    color_eyre::Result::Ok(())
+    Ok(())
 }
 
 pub async fn build_wasm(context: &Context, serve: bool) -> color_eyre::Result<Option<PathBuf>> {

@@ -10,7 +10,7 @@ use color_eyre::owo_colors::OwoColorize;
 use crossterm::style::Stylize;
 use notify_debouncer_full::notify::RecursiveMode;
 use std::sync::Arc;
-use tokio::{sync::mpsc, time};
+use tokio::sync::mpsc;
 
 #[derive(Debug, Subcommand)]
 pub enum ServeCommands {
@@ -74,12 +74,7 @@ impl ServeCommands {
 async fn init_build_finished(context: &Arc<Context>) -> color_eyre::Result<()> {
     context.cli_tx.send(cli::Message::InitBuildFinished).await?;
 
-    let time = ((time::Instant::now().elapsed().as_secs_f32()
-        - context.init_start_time.elapsed().as_secs_f32())
-        * 100.0)
-        .abs()
-        .round()
-        / 100.0;
+    let time = (context.init_start_time.elapsed().as_secs_f32() * 100.0).round() / 100.0;
 
     println!(
         "\n\n  {}  ready in {}s\n",

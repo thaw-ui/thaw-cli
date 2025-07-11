@@ -18,6 +18,7 @@ pub struct Context {
     pub(crate) assets_dir: PathBuf,
     cargo_manifest: Manifest,
     pub(crate) create_version: &'static str,
+    pub(crate) serve: bool,
     pub(crate) cli_tx: mpsc::Sender<cli::Message>,
     pub(crate) init_start_time: time::Instant,
 }
@@ -61,6 +62,7 @@ impl Context {
             assets_dir,
             cargo_manifest,
             create_version: env!("CARGO_PKG_VERSION"),
+            serve,
             cli_tx,
             init_start_time,
         })

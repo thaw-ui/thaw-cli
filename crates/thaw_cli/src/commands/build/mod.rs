@@ -5,11 +5,13 @@ mod hydrate;
 use self::common::wasm_bindgen;
 use crate::{
     build::{clear_out_dir, copy_public_dir},
+    cli,
     context::Context,
 };
 use clap::Subcommand;
-use std::path::PathBuf;
-use tokio::fs;
+use crossterm::style::Stylize;
+use std::{path::PathBuf, sync::Arc};
+use tokio::{fs, task, time};
 
 use xshell::{Shell, cmd};
 
@@ -20,17 +22,38 @@ pub enum BuildCommands {
 }
 
 impl BuildCommands {
-    pub async fn run(self, context: &Context, serve: bool) -> color_eyre::Result<()> {
+    pub async fn run(self, context: &Arc<Context>, serve: bool) -> color_eyre::Result<()> {
         match self {
             Self::Csr => {
+                init_build(context);
+                let start = time::Instant::now();
+
                 let wasm_path = csr::build_wasm(context, serve).await?;
 
                 clear_out_dir(context).await?;
                 copy_public_dir(context).await?;
-                csr::build_index_html(context, serve)?;
+                csr::build_index_html(context, serve).await?;
                 fs::create_dir_all(&context.assets_dir).await?;
                 common::build_assets(context, wasm_path, &context.assets_dir).await?;
                 wasm_bindgen(context, &build_wasm_path(context)?, &context.assets_dir).await?;
+
+                let time = start.elapsed().as_secs_f32();
+                if context.serve {
+                    context
+                        .cli_tx
+                        .send(cli::Message::Build(
+                            format!("✓ built in {time:.2}s").green().to_string(),
+                        ))
+                        .await?;
+                } else {
+                    let context = context.clone();
+                    task::spawn_blocking(move || {
+                        context.cli_tx.blocking_send(cli::Message::Build(
+                            format!("✓ built in {time:.2}s").green().to_string(),
+                        ))
+                    })
+                    .await??;
+                }
             }
             Self::Ssr => {
                 clear_out_dir(context).await?;
@@ -102,4 +125,15 @@ pub fn build_exe_name(context: &Context) -> color_eyre::Result<String> {
         exe_name.push_str(".exe");
     }
     color_eyre::Result::Ok(exe_name)
+}
+
+fn init_build(context: &Context) {
+    if context.serve {
+        return;
+    }
+    println!(
+        "{} {}",
+        format!("Thaw CLI v{}", context.create_version).cyan(),
+        "building".green()
+    );
 }
