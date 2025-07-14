@@ -1,10 +1,7 @@
-mod common;
-mod csr;
-mod hydrate;
-
-use self::common::wasm_bindgen;
 use crate::{
-    build::{clear_out_dir, copy_public_dir},
+    build::{
+        clear_out_dir, collect_assets, copy_public_dir, csr, hydrate, run_cargo_build, wasm_bindgen,
+    },
     cli,
     context::Context,
 };
@@ -12,8 +9,6 @@ use clap::Subcommand;
 use crossterm::style::Stylize;
 use std::{path::PathBuf, sync::Arc};
 use tokio::{fs, task, time};
-
-use xshell::{Shell, cmd};
 
 #[derive(Debug, Subcommand)]
 pub enum BuildCommands {
@@ -28,13 +23,13 @@ impl BuildCommands {
                 init_build(context);
                 let start = time::Instant::now();
 
-                let wasm_path = csr::build_wasm(context, serve).await?;
+                let wasm_path = run_cargo_build(context, csr::cargo_build_args(context)).await?;
 
                 clear_out_dir(context).await?;
                 copy_public_dir(context).await?;
                 csr::build_index_html(context, serve).await?;
                 fs::create_dir_all(&context.assets_dir).await?;
-                common::build_assets(context, wasm_path, &context.assets_dir).await?;
+                collect_assets(context, wasm_path, &context.assets_dir).await?;
                 wasm_bindgen(context, &build_wasm_path(context)?, &context.assets_dir).await?;
 
                 let time = start.elapsed().as_secs_f32();
@@ -65,14 +60,11 @@ impl BuildCommands {
                 fs::create_dir_all(&assets_dir).await?;
                 copy_public_dir(context).await?;
 
-                hydrate::run(context, &assets_dir).await?;
+                let wasm_path = run_cargo_build(context, hydrate::cargo_build_args()).await?;
+                collect_assets(context, wasm_path, &context.assets_dir).await?;
+                wasm_bindgen(context, &build_wasm_path(context)?, &assets_dir).await?;
 
-                let mut cargo_args = vec!["--features=ssr"];
-                if context.config.release {
-                    cargo_args.push("--release");
-                }
-                build(cargo_args)?;
-
+                run_cargo_build(context, vec!["--features=ssr"]).await?;
                 fs::create_dir_all(&server_out_dir).await?;
                 fs::copy(
                     build_exe_path(context)?,
@@ -81,15 +73,8 @@ impl BuildCommands {
                 .await?;
             }
         }
-        color_eyre::Result::Ok(())
+        Ok(())
     }
-}
-
-fn build(args: Vec<&'static str>) -> color_eyre::Result<()> {
-    let sh = Shell::new()?;
-    cmd!(sh, "cargo build {args...}").run()?;
-
-    color_eyre::Result::Ok(())
 }
 
 fn build_wasm_path(context: &Context) -> color_eyre::Result<PathBuf> {
@@ -102,7 +87,7 @@ fn build_wasm_path(context: &Context) -> color_eyre::Result<PathBuf> {
         },
         context.cargo_package_name()?
     ));
-    color_eyre::Result::Ok(wasm_path)
+    Ok(wasm_path)
 }
 
 fn build_exe_path(context: &Context) -> color_eyre::Result<PathBuf> {

@@ -1,9 +1,23 @@
+mod assets;
+pub mod csr;
+pub mod hydrate;
+mod wasm;
+
+pub use assets::collect_assets;
+pub use wasm::wasm_bindgen;
+
 use crate::{
     cli,
     context::Context,
     utils::fs::{clear_dir, copy_dir_all},
 };
-use tokio::fs;
+use color_eyre::eyre::eyre;
+use std::{path::PathBuf, process::Stdio};
+use tokio::{
+    fs,
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
+};
 
 #[inline]
 pub async fn clear_out_dir(context: &Context) -> color_eyre::Result<()> {
@@ -42,4 +56,76 @@ pub async fn copy_public_dir(context: &Context) -> color_eyre::Result<()> {
         .await?;
     copy_dir_all(public_dir, &context.out_dir).await?;
     Ok(())
+}
+
+pub async fn run_cargo_build(
+    context: &Context,
+    args: Vec<&'static str>,
+) -> color_eyre::Result<Option<PathBuf>> {
+    let mut cmd = Command::new("cargo");
+
+    cmd.arg("build");
+    cmd.args(args);
+    if context.config.release {
+        cmd.arg("--release");
+    }
+    cmd.arg("--message-format=json-diagnostic-rendered-ansi");
+
+    let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+
+    let stdout = BufReader::new(child.stdout.take().unwrap());
+    let stderr = BufReader::new(child.stderr.take().unwrap());
+
+    let mut stdout = stdout.lines();
+    let mut stderr = stderr.lines();
+    let mut output_location: Option<PathBuf> = None;
+
+    loop {
+        use cargo_metadata::Message;
+
+        let line = tokio::select! {
+            Ok(Some(line)) = stdout.next_line() => line,
+            Ok(Some(line)) = stderr.next_line() => line,
+            else => break,
+        };
+
+        let Some(Ok(message)) = Message::parse_stream(std::io::Cursor::new(line)).next() else {
+            continue;
+        };
+
+        let message = match message {
+            Message::CompilerArtifact(artifact) => {
+                // TODO
+
+                output_location = artifact.executable.map(Into::into);
+                None
+            }
+            Message::BuildScriptExecuted(_build_script) => {
+                // TODO
+                None
+            }
+            Message::CompilerMessage(compiler_message) => Some(cli::Message::CargoPackaging(
+                compiler_message.message.into(),
+            )),
+            Message::TextLine(value) => Some(cli::Message::CargoPackaging(value.into())),
+            Message::BuildFinished(build_finished) => {
+                if !build_finished.success {
+                    if context.serve {
+                        // todo!()
+                        return Err(eyre!("Cargo build failed"));
+                    } else {
+                        return Err(eyre!("Cargo build failed"));
+                    }
+                }
+                Some(cli::Message::CargoBuildFinished)
+            }
+            _ => None,
+        };
+
+        if let Some(message) = message {
+            let _ = context.cli_tx.send(message).await;
+        }
+    }
+
+    Ok(output_location)
 }

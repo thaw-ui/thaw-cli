@@ -77,7 +77,7 @@ async fn init_build_finished(context: &Arc<Context>) -> color_eyre::Result<()> {
     let time = (context.init_start_time.elapsed().as_secs_f32() * 100.0).round() / 100.0;
 
     println!(
-        "\n\n  {}  ready in {}s\n",
+        "\n\n  {}  ready in {} s\n",
         format!("Thaw CLI v{}", context.create_version).green(),
         time.bold()
     );
