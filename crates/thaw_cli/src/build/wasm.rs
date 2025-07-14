@@ -6,14 +6,33 @@ use std::path::{Path, PathBuf};
 use tokio::process::Command;
 use wasm_bindgen_cli_support::Bindgen;
 
+fn build_wasm_path(context: &Context) -> color_eyre::Result<PathBuf> {
+    let wasm_path = context.target_dir.join(format!(
+        "wasm32-unknown-unknown/{}/{}.wasm",
+        if context.config.release {
+            "release"
+        } else {
+            "debug"
+        },
+        context.cargo_package_name()?
+    ));
+    Ok(wasm_path)
+}
+
 pub async fn wasm_bindgen(
     context: &Context,
-    input_path: &PathBuf,
+    input_path: Option<PathBuf>,
     out_dir: &Path,
 ) -> color_eyre::Result<()> {
     if tokio::fs::try_exists(&context.wasm_bindgen_dir).await? {
         tokio::fs::remove_dir_all(&context.wasm_bindgen_dir).await?;
     }
+    let input_path = if let Some(input_path) = input_path {
+        input_path
+    } else {
+        build_wasm_path(context)?
+    };
+
     let mut bindgen = Bindgen::new();
     let bindgen = bindgen.input_path(input_path).web(true).dot_eyre()?;
     bindgen.generate(&context.wasm_bindgen_dir).dot_eyre()?;

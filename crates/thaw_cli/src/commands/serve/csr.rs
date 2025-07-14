@@ -22,7 +22,7 @@ pub async fn build(
     context: &Arc<Context>,
     serve_tx: &mpsc::Sender<ServeEvent>,
 ) -> color_eyre::Result<()> {
-    BuildCommands::Csr.run(context, true).await?;
+    BuildCommands::Csr.run(context).await?;
     serve_tx.send(ServeEvent::RefreshPage).await?;
     Ok(())
 }

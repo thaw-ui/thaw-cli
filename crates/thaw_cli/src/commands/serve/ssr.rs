@@ -2,10 +2,7 @@ use super::{
     common::{self, ServeEvent, handle_thaw_cli_ws},
     watch,
 };
-use crate::{
-    commands::build::{BuildCommands, build_exe_name},
-    context::Context,
-};
+use crate::{build::cargo_build_exe_name, commands::build::BuildCommands, context::Context};
 use axum::{
     Router,
     body::Body,
@@ -33,7 +30,7 @@ pub async fn build(
     context: &Arc<Context>,
     serve_tx: &mpsc::Sender<ServeEvent>,
 ) -> color_eyre::Result<()> {
-    BuildCommands::Ssr.run(context, true).await?;
+    BuildCommands::Ssr.run(context).await?;
     serve_tx.send(ServeEvent::RefreshPage).await?;
     Ok(())
 }
@@ -71,7 +68,7 @@ pub fn run_ssr_exe(context: Arc<Context>) -> color_eyre::Result<()> {
     let exe_path = context
         .out_dir
         .join("server")
-        .join(build_exe_name(&context)?);
+        .join(cargo_build_exe_name(&context)?);
     sh.set_var("LEPTOS_OUTPUT_NAME", context.cargo_package_name()?);
     sh.set_var("LEPTOS_SITE_PKG_DIR", "assets");
     sh.set_var("LEPTOS_WATCH", "");
@@ -87,6 +84,8 @@ pub fn run_ssr_exe(context: Arc<Context>) -> color_eyre::Result<()> {
 #[derive(Debug, Clone)]
 pub struct AppState {
     tx: broadcast::Sender<()>,
+    public_dir: PathBuf,
+    public_file_service: Option<ServeDir>,
     static_file_service: ServeDir,
     backend_url: String,
     client_dir: PathBuf,
@@ -106,12 +105,26 @@ pub async fn run_serve(context: Arc<Context>, tx: broadcast::Sender<()>) -> colo
         .precompressed_gzip()
         .precompressed_deflate();
 
+    let public_dir = context.current_dir.join(context.config.public_dir.clone());
+    let public_file_service = if fs::try_exists(&public_dir).await? {
+        ServeDir::new(&public_dir)
+            .precompressed_br()
+            .precompressed_zstd()
+            .precompressed_gzip()
+            .precompressed_deflate()
+            .into()
+    } else {
+        None
+    };
+
     let client: Client =
         hyper_util::client::legacy::Client::<(), ()>::builder(TokioExecutor::new())
             .build(HttpConnector::new());
 
     let state = AppState {
         tx,
+        public_dir,
+        public_file_service,
         static_file_service,
         backend_url: "http://127.0.0.1:3000".to_string(),
         client_dir,
@@ -145,12 +158,21 @@ async fn handler(State(state): State<AppState>, request: Request) -> Response {
         if path.starts_with("/") {
             path.remove(0);
         }
-        let file_path = state.client_dir.join(path);
+        let file_path = state.client_dir.join(&path);
         if fs::metadata(&file_path).await.is_ok_and(|f| f.is_file()) {
             return match state.static_file_service.clone().oneshot(request).await {
                 Ok(response) => response.into_response(),
                 Err(_) => (StatusCode::BAD_REQUEST, "Invalid backend URL").into_response(),
             };
+        }
+        if let Some(public_file_service) = state.public_file_service.clone() {
+            let file_path = state.public_dir.join(&path);
+            if fs::metadata(&file_path).await.is_ok_and(|f| f.is_file()) {
+                return match public_file_service.oneshot(request).await {
+                    Ok(response) => response.into_response(),
+                    Err(_) => (StatusCode::BAD_REQUEST, "Invalid backend URL").into_response(),
+                };
+            }
         }
     }
 

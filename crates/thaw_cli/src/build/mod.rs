@@ -58,6 +58,14 @@ pub async fn copy_public_dir(context: &Context) -> color_eyre::Result<()> {
     Ok(())
 }
 
+pub fn cargo_build_exe_name(context: &Context) -> color_eyre::Result<String> {
+    let mut exe_name = context.cargo_package_name()?;
+    if cfg!(windows) {
+        exe_name.push_str(".exe");
+    }
+    Ok(exe_name)
+}
+
 pub async fn run_cargo_build(
     context: &Context,
     args: Vec<&'static str>,

@@ -4,6 +4,7 @@ mod ssr;
 mod watch;
 
 use self::common::{RunServeData, ServeEvent};
+use super::build::BuildCommands;
 use crate::{cli, context::Context};
 use clap::Subcommand;
 use color_eyre::owo_colors::OwoColorize;
@@ -24,8 +25,8 @@ impl ServeCommands {
         let (serve_tx, mut serve_rx) = mpsc::channel::<ServeEvent>(10);
 
         match &self {
-            ServeCommands::Csr => csr::build(&context, &serve_tx).await?,
-            ServeCommands::Ssr => ssr::build(&context, &serve_tx).await?,
+            ServeCommands::Csr => BuildCommands::Csr.run(&context).await?,
+            ServeCommands::Ssr => BuildCommands::Ssr.run(&context).await?,
         }
 
         let mut watcher = match &self {
@@ -53,6 +54,7 @@ impl ServeCommands {
             ServeCommands::Csr => RunServeData::new(csr::RunServe(context)),
             ServeCommands::Ssr => RunServeData::new(ssr::RunServe(context)),
         };
+        data.run_serve();
         while let Some(event) = serve_rx.recv().await {
             match event {
                 // ServeEvent::Restart => {

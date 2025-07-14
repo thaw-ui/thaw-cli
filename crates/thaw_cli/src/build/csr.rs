@@ -10,7 +10,7 @@ pub fn cargo_build_args(context: &Context) -> Vec<&'static str> {
     args
 }
 
-pub async fn build_index_html(context: &Context, serve: bool) -> color_eyre::Result<()> {
+pub async fn build_index_html(context: &Context) -> color_eyre::Result<()> {
     context
         .cli_tx
         .send(cli::Message::Build("Packaging index.html file".to_string()))
@@ -33,7 +33,7 @@ pub async fn build_index_html(context: &Context, serve: bool) -> color_eyre::Res
         r#"<script type="module">import init from '/{assets_path}/{package_name}.js';await init({{ module_or_path: '/{assets_path}/{package_name}_bg.wasm' }})</script>"#,
     );
 
-    if serve {
+    if context.serve {
         import_script.push_str(r#"<script src="/__thaw_cli__.js"></script>"#);
     }
 
@@ -45,7 +45,7 @@ pub async fn build_index_html(context: &Context, serve: bool) -> color_eyre::Res
     let mut file = fs::File::create_new(new_html_path)?;
     file.write_all(html_str.as_bytes())?;
 
-    if serve {
+    if context.serve {
         let path = out_dir.join("__thaw_cli__.js");
         let mut file = fs::File::create_new(path)?;
         file.write_all(include_str!("./__thaw_cli__.js").as_bytes())?;
