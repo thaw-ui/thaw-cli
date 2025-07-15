@@ -1,11 +1,14 @@
 mod build;
-mod serve;
+// pub mod serve;
 
-use crate::{cli, context::Context};
+use crate::{
+    cli,
+    context::Context,
+    server::{csr, init_build_finished, ssr},
+};
 use build::BuildCommands;
 use clap::Subcommand;
 use crossterm::style::Stylize;
-use serve::ServeCommands;
 use std::sync::Arc;
 use tokio::{task, time};
 
@@ -19,14 +22,42 @@ pub enum Commands {
 
 impl Commands {
     pub async fn run(self, context: Context) -> color_eyre::Result<()> {
+        let context = Arc::new(context);
+
         match self {
             Self::Build(subcommmands) => {
-                let context = Arc::new(context);
                 build(context.clone(), async { subcommmands.run(&context).await }).await
             }
-            Self::Serve(subcommmands) => subcommmands.run(context).await,
+            Self::Serve(subcommmands) => match subcommmands {
+                ServeCommands::Csr => {
+                    BuildCommands::Csr.run(&context).await?;
+                    init_build_finished(&context).await?;
+                    csr::DevServer::new(context)?
+                        .run()
+                        .await?
+                        .wait_event()
+                        .await?;
+                    Ok(())
+                }
+                ServeCommands::Ssr => {
+                    BuildCommands::Ssr.run(&context).await?;
+                    init_build_finished(&context).await?;
+                    ssr::DevServer::new(context)?
+                        .run()
+                        .await?
+                        .wait_event()
+                        .await?;
+                    Ok(())
+                }
+            },
         }
     }
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ServeCommands {
+    Csr,
+    Ssr,
 }
 
 async fn build(

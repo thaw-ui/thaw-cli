@@ -1,8 +1,5 @@
-use super::{
-    common::{self, ServeEvent, handle_thaw_cli_ws},
-    watch,
-};
-use crate::{build::cargo_build_exe_name, commands::build::BuildCommands, context::Context};
+use super::ws::handle_thaw_cli_ws;
+use crate::context::Context;
 use axum::{
     Router,
     body::Body,
@@ -14,72 +11,11 @@ use axum::{
 use hyper::{Method, StatusCode};
 use hyper_util::{client::legacy::connect::HttpConnector, rt::TokioExecutor};
 use std::{path::PathBuf, sync::Arc};
-use tokio::{
-    fs,
-    net::TcpListener,
-    sync::{broadcast, mpsc},
-    task::{self, JoinHandle},
-};
+use tokio::{fs, net::TcpListener, sync::broadcast};
 use tower::ServiceExt;
 use tower_http::{compression::CompressionLayer, services::ServeDir};
-use xshell::{Shell, cmd};
 
 type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
-
-pub async fn build(
-    context: &Arc<Context>,
-    serve_tx: &mpsc::Sender<ServeEvent>,
-) -> color_eyre::Result<()> {
-    BuildCommands::Ssr.run(context).await?;
-    serve_tx.send(ServeEvent::RefreshPage).await?;
-    Ok(())
-}
-
-pub struct WatchBuild {
-    pub context: Arc<Context>,
-    pub serve_tx: mpsc::Sender<ServeEvent>,
-}
-
-impl watch::WatchBuild for WatchBuild {
-    async fn build(&self) -> color_eyre::Result<()> {
-        build(&self.context, &self.serve_tx).await
-    }
-}
-
-pub struct RunServe(pub Arc<Context>);
-
-impl common::RunServe for RunServe {
-    fn run(&self, page_tx: broadcast::Sender<()>) -> Vec<JoinHandle<color_eyre::Result<()>>> {
-        vec![
-            task::spawn({
-                let context = self.0.clone();
-                async { run_ssr_exe(context) }
-            }),
-            task::spawn({
-                let context = self.0.clone();
-                async { run_serve(context, page_tx).await }
-            }),
-        ]
-    }
-}
-
-pub fn run_ssr_exe(context: Arc<Context>) -> color_eyre::Result<()> {
-    let sh = Shell::new()?;
-    let exe_path = context
-        .out_dir
-        .join("server")
-        .join(cargo_build_exe_name(&context)?);
-    sh.set_var("LEPTOS_OUTPUT_NAME", context.cargo_package_name()?);
-    sh.set_var("LEPTOS_SITE_PKG_DIR", "assets");
-    sh.set_var("LEPTOS_WATCH", "");
-    sh.set_var(
-        "LEPTOS_RELOAD_EXTERNAL_PORT",
-        context.config.server.port.to_string(),
-    );
-    cmd!(sh, "{exe_path}").run()?;
-
-    color_eyre::Result::Ok(())
-}
 
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -96,7 +32,7 @@ async fn cargo_leptos_ws(ws: WebSocketUpgrade, State(state): State<AppState>) ->
     ws.on_upgrade(move |socket| handle_thaw_cli_ws(socket, state.tx.clone(), true))
 }
 
-pub async fn run_serve(context: Arc<Context>, tx: broadcast::Sender<()>) -> color_eyre::Result<()> {
+pub async fn run(context: Arc<Context>, tx: broadcast::Sender<()>) -> color_eyre::Result<()> {
     let client_dir = context.out_dir.join("client");
 
     let static_file_service = ServeDir::new(&client_dir)
@@ -149,7 +85,7 @@ pub async fn run_serve(context: Arc<Context>, tx: broadcast::Sender<()>) -> colo
 
     axum::serve(listener, app).await?;
 
-    color_eyre::Result::Ok(())
+    Ok(())
 }
 
 async fn handler(State(state): State<AppState>, request: Request) -> Response {

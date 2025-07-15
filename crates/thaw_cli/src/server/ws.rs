@@ -9,55 +9,7 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use serde::Serialize;
 use std::fmt::Debug;
-use tokio::{
-    sync::broadcast,
-    task::{self, JoinHandle},
-};
-
-pub trait RunServe {
-    fn run(&self, page_tx: broadcast::Sender<()>) -> Vec<JoinHandle<color_eyre::Result<()>>>;
-}
-
-pub struct RunServeData {
-    join_handle: Option<Vec<JoinHandle<color_eyre::Result<()>>>>,
-    pub page_tx: Option<broadcast::Sender<()>>,
-    serve: Box<dyn RunServe>,
-}
-
-impl RunServeData {
-    pub fn new(serve: impl RunServe + 'static) -> Self {
-        Self {
-            join_handle: None,
-            page_tx: None,
-            serve: Box::new(serve),
-        }
-    }
-
-    fn abort(&mut self) {
-        if let Some(jh_list) = self.join_handle.take() {
-            jh_list.into_iter().for_each(|jh| {
-                jh.abort();
-            });
-            self.page_tx.take();
-        }
-    }
-
-    pub fn run_serve(&mut self) {
-        self.abort();
-
-        let (tx, _) = broadcast::channel(10);
-        let jh = self.serve.run(tx.clone());
-
-        self.join_handle = Some(jh);
-        self.page_tx = Some(tx);
-    }
-}
-
-#[derive(Debug)]
-pub enum ServeEvent {
-    // Restart,
-    RefreshPage,
-}
+use tokio::{sync::broadcast, task};
 
 #[derive(Debug, Clone)]
 pub struct ThawCliWs {

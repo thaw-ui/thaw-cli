@@ -21,7 +21,9 @@ impl BuildCommands {
             Self::Csr => {
                 let wasm_path = run_cargo_build(context, csr::cargo_build_args(context)).await?;
                 clear_out_dir(context).await?;
-                copy_public_dir(context).await?;
+                if !context.serve {
+                    copy_public_dir(context).await?;
+                }
                 csr::build_index_html(context).await?;
                 fs::create_dir_all(&context.assets_dir).await?;
                 collect_assets(context, wasm_path, &context.assets_dir).await?;
