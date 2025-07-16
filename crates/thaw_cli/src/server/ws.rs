@@ -75,7 +75,7 @@ impl WsMessage {
         if cargo_leptos {
             match self {
                 WsMessage::Connected => ws::Message::Ping(Bytes::new()),
-                WsMessage::RefreshPage => ws::Message::text(r#"{"all":""}"#),
+                WsMessage::RefreshPage => ws::Message::text(r#"{"all":"reload"}"#),
             }
         } else {
             let value = serde_json::to_string(&self).unwrap();
