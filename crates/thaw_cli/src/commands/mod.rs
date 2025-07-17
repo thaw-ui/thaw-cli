@@ -14,8 +14,10 @@ use tokio::{task, time};
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Build the Leptos project
     #[command(subcommand)]
     Build(BuildCommands),
+    /// Start Thaw CLI dev server in the current directory
     #[command(subcommand)]
     Serve(ServeCommands),
 }
@@ -56,7 +58,9 @@ impl Commands {
 
 #[derive(Debug, Subcommand)]
 pub enum ServeCommands {
+    /// Client-side rendering
     Csr,
+    /// Server-side Rendering
     Ssr,
 }
 

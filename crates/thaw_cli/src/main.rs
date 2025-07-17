@@ -5,6 +5,8 @@ use tokio::time;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
+
     let init_start_time = time::Instant::now();
 
     let cli = Cli::parse();

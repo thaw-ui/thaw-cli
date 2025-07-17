@@ -11,7 +11,9 @@ use tokio::fs;
 
 #[derive(Debug, Subcommand)]
 pub enum BuildCommands {
+    /// Client-side rendering
     Csr,
+    /// Server-side Rendering
     Ssr,
 }
 
