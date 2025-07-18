@@ -198,7 +198,7 @@ impl PrintMessage {
                             normalize_path(path.strip_prefix(&self.current_dir).unwrap_or(path))
                         ),
                         Err(err) => format!(
-                            "{} {} error: {err:#?}",
+                            "{} {} error: {err:?}",
                             now.format("%H:%M:%S"),
                             "[thaw-cli]".red(),
                         ),

@@ -71,7 +71,12 @@ impl DevServer {
         while let Some(event) = self.event_rx.recv().await {
             match event {
                 Event::Watch(paths) => {
+                    if paths.is_empty() {
+                        continue;
+                    }
+
                     let build_result = self.rebuild(&paths).await;
+
                     self.context
                         .cli_tx
                         .send(cli::Message::PageReload(paths, build_result))
@@ -82,14 +87,17 @@ impl DevServer {
         Ok(())
     }
 
-    async fn rebuild(&mut self, _paths: &Vec<PathBuf>) -> color_eyre::Result<()> {
-        let wasm_path =
-            run_cargo_build(&self.context, csr::cargo_build_args(&self.context)).await?;
-        clear_out_dir(&self.context).await?;
-        csr::build_index_html(&self.context).await?;
-        fs::create_dir_all(&self.context.assets_dir).await?;
-        collect_assets(&self.context, wasm_path, &self.context.assets_dir).await?;
-        wasm_bindgen(&self.context, None, &self.context.assets_dir).await?;
+    async fn rebuild(&mut self, paths: &Vec<PathBuf>) -> color_eyre::Result<()> {
+        if paths.len() == 1 && paths[0] == self.context.current_dir.join("index.html") {
+            csr::build_index_html(&self.context).await?;
+        } else {
+            let wasm_path =
+                run_cargo_build(&self.context, csr::cargo_build_args(&self.context)).await?;
+            clear_out_dir(&self.context).await?;
+            fs::create_dir_all(&self.context.assets_dir).await?;
+            collect_assets(&self.context, wasm_path, &self.context.assets_dir).await?;
+            wasm_bindgen(&self.context, None, &self.context.assets_dir).await?;
+        }
 
         self.page_tx.as_ref().unwrap().send(())?;
         Ok(())

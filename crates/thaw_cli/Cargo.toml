@@ -42,9 +42,9 @@ tar = "0.4"
 flate2 = "1.1"
 chrono = "0.4.41"
 
-dioxus-cli-opt = "=0.7.0-alpha.2"
-manganis = "=0.7.0-alpha.2"
-const-serialize = "=0.7.0-alpha.2"
+dioxus-cli-opt = "=0.7.0-alpha.3"
+manganis = "=0.7.0-alpha.3"
+const-serialize = "=0.7.0-alpha.3"
 object = { version = "0.37.1", features = ["all"] }
 pdb = "0.8.0"
 walrus = { version = "0.23.3", features = ["parallel"] }

@@ -1,5 +1,3 @@
 [workspace]
 resolver = "3"
-members = [
-    "crates/thaw_cli",
-]
+members = ["crates/thaw_cli", "examples/start_trunk"]

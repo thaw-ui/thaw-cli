@@ -17,7 +17,7 @@ pub async fn build_index_html(context: &Context) -> color_eyre::Result<()> {
         .await?;
 
     let html_path = context.current_dir.join("index.html");
-    if !fs::exists(&html_path)? {
+    if !context.serve && !fs::exists(&html_path)? {
         return Err(eyre!(
             "No index.html file was found in the root directory. Location: {html_path:?}"
         ));
@@ -42,13 +42,15 @@ pub async fn build_index_html(context: &Context) -> color_eyre::Result<()> {
     let out_dir = &context.out_dir;
 
     let new_html_path = out_dir.join("index.html");
-    let mut file = fs::File::create_new(new_html_path)?;
+    let mut file = fs::File::create(new_html_path)?;
     file.write_all(html_str.as_bytes())?;
 
     if context.serve {
         let path = out_dir.join("__thaw_cli__.js");
-        let mut file = fs::File::create_new(path)?;
-        file.write_all(include_str!("./__thaw_cli__.js").as_bytes())?;
+        if !tokio::fs::try_exists(&path).await? {
+            let mut file = fs::File::create_new(path)?;
+            file.write_all(include_str!("./__thaw_cli__.js").as_bytes())?;
+        }
     }
 
     Ok(())

@@ -1,5 +1,5 @@
 // This file is based on the code modification of [Dioxus CLI](https://github.com/DioxusLabs/dioxus/blob/main/packages/cli/src/build/assets.rs)
-
+// commit 2071be2b6753327a980909fc58a1c4b81bed911a
 use color_eyre::{
     Result,
     eyre::{Context, ContextCompat, eyre},
