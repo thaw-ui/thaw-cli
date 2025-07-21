@@ -1,4 +1,4 @@
-mod assets;
+pub mod assets;
 pub mod csr;
 pub mod hydrate;
 mod wasm;

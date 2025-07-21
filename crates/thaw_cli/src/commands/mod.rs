@@ -1,5 +1,4 @@
 mod build;
-// pub mod serve;
 
 use crate::{
     cli,
@@ -28,24 +27,28 @@ impl Commands {
 
         match self {
             Self::Build(subcommmands) => {
-                build(context.clone(), async { subcommmands.run(&context).await }).await
+                build(context.clone(), async {
+                    subcommmands.run(&context).await?;
+                    Ok(())
+                })
+                .await
             }
             Self::Serve(subcommmands) => match subcommmands {
                 ServeCommands::Csr => {
-                    BuildCommands::Csr.run(&context).await?;
+                    let assets = BuildCommands::Csr.run(&context).await?;
                     init_build_finished(&context).await?;
                     csr::DevServer::new(context)?
-                        .run()
+                        .run(assets)
                         .await?
                         .wait_event()
                         .await?;
                     Ok(())
                 }
                 ServeCommands::Ssr => {
-                    BuildCommands::Ssr.run(&context).await?;
+                    let assets = BuildCommands::Ssr.run(&context).await?;
                     init_build_finished(&context).await?;
                     ssr::DevServer::new(context)?
-                        .run()
+                        .run(assets)
                         .await?
                         .wait_event()
                         .await?;

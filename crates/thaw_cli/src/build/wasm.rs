@@ -1,4 +1,5 @@
 use crate::{
+    cli,
     context::Context,
     utils::{DotEyre, fs::copy_dir_all, wasm_opt_bin_path},
 };
@@ -24,6 +25,12 @@ pub async fn wasm_bindgen(
     input_path: Option<PathBuf>,
     out_dir: &Path,
 ) -> color_eyre::Result<()> {
+    context
+        .cli_tx
+        .send(cli::Message::Build(
+            "Generating JS/WASM with wasm-bindgen".to_string(),
+        ))
+        .await?;
     if tokio::fs::try_exists(&context.wasm_bindgen_dir).await? {
         tokio::fs::remove_dir_all(&context.wasm_bindgen_dir).await?;
     }
@@ -44,12 +51,16 @@ pub async fn wasm_bindgen(
 
     let wasm_path = context.wasm_bindgen_dir.join(&wasm_name);
     let out_wasm_path = out_dir.join(wasm_name);
-    wasm_opt(&wasm_path, &out_wasm_path).await?;
+    wasm_opt(context, &wasm_path, &out_wasm_path).await?;
 
     Ok(())
 }
 
-async fn wasm_opt(input_path: &Path, out_path: &Path) -> color_eyre::Result<()> {
+async fn wasm_opt(context: &Context, input_path: &Path, out_path: &Path) -> color_eyre::Result<()> {
+    context
+        .cli_tx
+        .send(cli::Message::Build("Optimize WASM".to_string()))
+        .await?;
     let path = wasm_opt_bin_path().await?;
     // wasm_opt::OptimizationOptions::new_optimize_for_size_aggressively()
     let args = vec![

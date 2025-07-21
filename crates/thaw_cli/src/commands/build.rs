@@ -1,6 +1,6 @@
 use crate::{
     build::{
-        cargo_build_exe_name, clear_out_dir, collect_assets, copy_public_dir, csr, hydrate,
+        assets, cargo_build_exe_name, clear_out_dir, collect_assets, copy_public_dir, csr, hydrate,
         run_cargo_build, wasm_bindgen,
     },
     context::Context,
@@ -18,7 +18,10 @@ pub enum BuildCommands {
 }
 
 impl BuildCommands {
-    pub async fn run(self, context: &Arc<Context>) -> color_eyre::Result<()> {
+    pub async fn run(
+        self,
+        context: &Arc<Context>,
+    ) -> color_eyre::Result<Vec<assets::BundledAsset>> {
         match self {
             Self::Csr => {
                 let wasm_path = run_cargo_build(context, csr::cargo_build_args(context)).await?;
@@ -28,8 +31,9 @@ impl BuildCommands {
                 }
                 csr::build_index_html(context).await?;
                 fs::create_dir_all(&context.assets_dir).await?;
-                collect_assets(context, wasm_path, &context.assets_dir).await?;
+                let assets = collect_assets(context, wasm_path, &context.assets_dir).await?;
                 wasm_bindgen(context, None, &context.assets_dir).await?;
+                Ok(assets)
             }
             Self::Ssr => {
                 clear_out_dir(context).await?;
@@ -49,15 +53,16 @@ impl BuildCommands {
                 let exe_path = run_cargo_build(context, vec!["--features=ssr"])
                     .await?
                     .unwrap();
-                collect_assets(context, Some(exe_path.clone()), &context.assets_dir).await?;
+                let assets =
+                    collect_assets(context, Some(exe_path.clone()), &context.assets_dir).await?;
                 fs::create_dir_all(&server_out_dir).await?;
                 fs::copy(
                     exe_path,
                     server_out_dir.join(cargo_build_exe_name(context)?),
                 )
                 .await?;
+                Ok(assets)
             }
         }
-        Ok(())
     }
 }
