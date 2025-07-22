@@ -24,6 +24,13 @@ impl Cli {
         matches!(self.commands, Commands::Serve(_))
     }
 
+    pub fn mode(&self) -> &'static str {
+        match &self.commands {
+            Commands::Build(_) => "production",
+            Commands::Serve(_) => "development",
+        }
+    }
+
     pub fn watch_message(current_dir: PathBuf) -> mpsc::Sender<Message> {
         let (message_tx, mut message_rx) = mpsc::channel(50);
         let mut print_message = PrintMessage::new(current_dir);

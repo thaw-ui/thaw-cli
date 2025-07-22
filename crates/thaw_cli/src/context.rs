@@ -1,4 +1,4 @@
-use crate::{cli, config::Config};
+use crate::{cli, config::Config, env::Env};
 use cargo_manifest::Manifest;
 use cargo_metadata::MetadataCommand;
 use color_eyre::eyre::eyre;
@@ -9,6 +9,7 @@ use tokio::{sync::mpsc, time};
 pub struct Context {
     /// User-specified or default configuration files.
     pub(crate) config: Config,
+    pub(crate) env: Env,
     /// Run the current command in the directory.
     pub(crate) current_dir: PathBuf,
     /// The target directory of the package.
@@ -26,6 +27,7 @@ pub struct Context {
 impl Context {
     pub fn new(
         config: Config,
+        env: Env,
         current_dir: PathBuf,
         cli_tx: mpsc::Sender<cli::Message>,
         init_start_time: time::Instant,
@@ -53,8 +55,9 @@ impl Context {
 
         let assets_dir = out_dir.join(&config.build.assets_dir);
 
-        color_eyre::Result::Ok(Self {
+        Ok(Self {
             config,
+            env,
             current_dir,
             target_dir,
             wasm_bindgen_dir,

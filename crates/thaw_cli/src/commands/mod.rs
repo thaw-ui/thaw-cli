@@ -22,7 +22,8 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn run(self, context: Context) -> color_eyre::Result<()> {
+    pub async fn run(self, mut context: Context) -> color_eyre::Result<()> {
+        context.env.set_default(ssr::default_env(&context)?);
         let context = Arc::new(context);
 
         match self {

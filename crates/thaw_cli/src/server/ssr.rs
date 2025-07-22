@@ -191,14 +191,28 @@ fn run_ssr_exe(context: Arc<Context>) -> color_eyre::Result<Child> {
         .join(cargo_build_exe_name(&context)?);
 
     let mut cmd = Command::new(exe_path);
-    cmd.env("LEPTOS_OUTPUT_NAME", context.cargo_package_name()?);
-    cmd.env("LEPTOS_SITE_PKG_DIR", "assets");
-    cmd.env("LEPTOS_WATCH", "");
-    cmd.env(
-        "LEPTOS_RELOAD_EXTERNAL_PORT",
-        context.config.server.port.to_string(),
-    );
+    cmd.envs(context.env.cloned_into_iter());
+    // cmd.env("LEPTOS_OUTPUT_NAME", context.cargo_package_name()?);
+    // cmd.env("LEPTOS_SITE_PKG_DIR", "assets");
+    // cmd.env("LEPTOS_WATCH", "");
+    // cmd.env(
+    //     "LEPTOS_RELOAD_EXTERNAL_PORT",
+    //     context.config.server.port.to_string(),
+    // );
 
     let child = cmd.spawn()?;
     Ok(child)
+}
+
+pub fn default_env(context: &Context) -> color_eyre::Result<Vec<(&'static str, String)>> {
+    Ok(vec![
+        ("LEPTOS_OUTPUT_NAME", context.cargo_package_name()?),
+        ("LEPTOS_SITE_PKG_DIR", "assets".to_string()),
+        ("LEPTOS_WATCH", String::new()),
+        (
+            "LEPTOS_RELOAD_EXTERNAL_PORT",
+            context.config.server.port.to_string(),
+        ),
+        ("LEPTOS_SITE_ADDR", "127.0.0.1:3000".to_string()),
+    ])
 }

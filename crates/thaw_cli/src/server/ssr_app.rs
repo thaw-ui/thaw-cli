@@ -57,12 +57,13 @@ pub async fn run(context: Arc<Context>, tx: broadcast::Sender<()>) -> color_eyre
         hyper_util::client::legacy::Client::<(), ()>::builder(TokioExecutor::new())
             .build(HttpConnector::new());
 
+    let backend_url = context.env.get("LEPTOS_SITE_ADDR").unwrap();
     let state = AppState {
         tx,
         public_dir,
         public_file_service,
         static_file_service,
-        backend_url: "http://127.0.0.1:3000".to_string(),
+        backend_url: format!("http://{backend_url}"),
         client_dir,
         client,
     };

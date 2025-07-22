@@ -74,7 +74,7 @@ pub async fn run_cargo_build(
     args: Vec<&'static str>,
 ) -> color_eyre::Result<Option<PathBuf>> {
     let mut cmd = Command::new("cargo");
-
+    cmd.envs(context.env.cloned_into_iter());
     cmd.arg("build");
     cmd.args(args);
     if context.config.release {

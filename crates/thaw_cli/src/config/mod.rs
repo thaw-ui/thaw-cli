@@ -1,10 +1,14 @@
 mod default;
 
 use default::{build, default_public_dir, server};
-use serde::Deserialize;
+use serde::{
+    Deserialize, Deserializer,
+    de::{self, Unexpected},
+};
 use std::path::PathBuf;
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Config {
     /// Build artifacts in release mode, with optimizations.
     ///
@@ -27,6 +31,9 @@ pub struct Config {
     /// Build configuration.
     #[serde(default = "BuildConfig::default")]
     pub build: BuildConfig,
+
+    #[serde(default = "EnvDir::default")]
+    pub env_dir: EnvDir,
 }
 
 impl Config {
@@ -37,7 +44,42 @@ impl Config {
             std::fs::read_to_string(path).unwrap_or_default()
         };
         let config: Self = toml::from_str(&config)?;
-        color_eyre::Result::Ok(config)
+        Ok(config)
+    }
+}
+
+#[derive(Debug)]
+pub enum EnvDir {
+    Path(String),
+    False,
+}
+
+impl Default for EnvDir {
+    fn default() -> Self {
+        Self::Path(String::new())
+    }
+}
+
+impl<'de> Deserialize<'de> for EnvDir {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum RawInput {
+            String(String),
+            Bool(bool),
+        }
+
+        match RawInput::deserialize(deserializer)? {
+            RawInput::String(s) => Ok(Self::Path(s)),
+            RawInput::Bool(false) => Ok(Self::False),
+            RawInput::Bool(true) => Err(de::Error::invalid_value(
+                Unexpected::Bool(true),
+                &"string or false",
+            )),
+        }
     }
 }
 
