@@ -10,6 +10,10 @@ pub mod server {
     pub fn default_port() -> u32 {
         6321
     }
+
+    pub fn default_erase_components() -> bool {
+        false
+    }
 }
 
 pub mod build {

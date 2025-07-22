@@ -12,7 +12,10 @@ use crate::{
     utils::fs::{clear_dir, copy_dir_all},
 };
 use color_eyre::eyre::eyre;
-use std::{path::PathBuf, process::Stdio};
+use std::{
+    path::{Path, PathBuf},
+    process::Stdio,
+};
 use tokio::{
     fs,
     io::{AsyncBufReadExt, BufReader},
@@ -35,7 +38,7 @@ pub async fn clear_out_dir(context: &Context) -> color_eyre::Result<()> {
     Ok(())
 }
 
-pub async fn copy_public_dir(context: &Context) -> color_eyre::Result<()> {
+pub async fn copy_public_dir(context: &Context, out_dir: &Path) -> color_eyre::Result<()> {
     if context.serve {
         return Ok(());
     }
@@ -54,7 +57,7 @@ pub async fn copy_public_dir(context: &Context) -> color_eyre::Result<()> {
             "Copying public_dir directory".to_string(),
         ))
         .await?;
-    copy_dir_all(public_dir, &context.out_dir).await?;
+    copy_dir_all(public_dir, out_dir).await?;
     Ok(())
 }
 
@@ -78,6 +81,10 @@ pub async fn run_cargo_build(
         cmd.arg("--release");
     }
     cmd.arg("--message-format=json-diagnostic-rendered-ansi");
+
+    if context.serve && context.config.server.erase_components {
+        cmd.env("RUSTFLAGS", "--cfg erase_components");
+    }
 
     let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
 

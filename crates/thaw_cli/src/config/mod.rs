@@ -55,6 +55,16 @@ pub struct ServerConfig {
     /// Default: 6321
     #[serde(default = "server::default_port")]
     pub port: u32,
+
+    /// Whether to enable erased components mode.
+    ///
+    /// erase_components mode offers a signifigant compile time speedup by type
+    /// erasing the types in your app. This is similar to adding `.into_any()`
+    /// to your entire app. It can also solve some issues with compilation in debug mode.
+    ///
+    /// Default: false
+    #[serde(default = "server::default_erase_components")]
+    pub erase_components: bool,
 }
 
 impl Default for ServerConfig {
@@ -62,6 +72,7 @@ impl Default for ServerConfig {
         Self {
             host: server::default_host(),
             port: server::default_port(),
+            erase_components: server::default_erase_components(),
         }
     }
 }

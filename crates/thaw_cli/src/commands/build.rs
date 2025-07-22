@@ -27,7 +27,7 @@ impl BuildCommands {
                 let wasm_path = run_cargo_build(context, csr::cargo_build_args(context)).await?;
                 clear_out_dir(context).await?;
                 if !context.serve {
-                    copy_public_dir(context).await?;
+                    copy_public_dir(context, &context.out_dir).await?;
                 }
                 csr::build_index_html(context).await?;
                 fs::create_dir_all(&context.assets_dir).await?;
@@ -44,7 +44,7 @@ impl BuildCommands {
 
                 fs::create_dir_all(&assets_dir).await?;
                 if !context.serve {
-                    copy_public_dir(context).await?;
+                    copy_public_dir(context, &client_out_dir).await?;
                 }
 
                 run_cargo_build(context, hydrate::cargo_build_args()).await?;
