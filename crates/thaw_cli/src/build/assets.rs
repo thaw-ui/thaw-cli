@@ -6,6 +6,7 @@ use std::{
 };
 use tokio::fs;
 
+#[derive(Debug)]
 pub struct BundledAsset {
     pub absolute_source_path: PathBuf,
     pub output_path: PathBuf,

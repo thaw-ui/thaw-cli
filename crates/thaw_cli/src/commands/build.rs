@@ -53,8 +53,7 @@ impl BuildCommands {
                 let exe_path = run_cargo_build(context, vec!["--features=ssr"])
                     .await?
                     .unwrap();
-                let assets =
-                    collect_assets(context, Some(exe_path.clone()), &context.assets_dir).await?;
+                let assets = collect_assets(context, Some(exe_path.clone()), &assets_dir).await?;
                 fs::create_dir_all(&server_out_dir).await?;
                 fs::copy(
                     exe_path,

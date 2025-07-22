@@ -22,6 +22,6 @@ pub mod build {
     }
 
     pub fn default_assets_manganis() -> bool {
-        false
+        true
     }
 }

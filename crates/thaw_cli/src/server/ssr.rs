@@ -120,12 +120,8 @@ impl DevServer {
             let exe_path = run_cargo_build(&self.context, vec!["--features=ssr"])
                 .await?
                 .unwrap();
-            collect_assets(
-                &self.context,
-                Some(exe_path.clone()),
-                &self.context.assets_dir,
-            )
-            .await?;
+            let assets = collect_assets(&self.context, Some(exe_path.clone()), &assets_dir).await?;
+            self.watch_assets(assets)?;
 
             self.abort_ssr_exe().await?;
 

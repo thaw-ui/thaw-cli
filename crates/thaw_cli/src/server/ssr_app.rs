@@ -123,7 +123,6 @@ async fn proxy_to_backend(state: AppState, mut request: Request) -> Response {
         .map(|v| v.as_str())
         .unwrap_or(path);
     let backend_uri = format!("{}{}", state.backend_url, path_query);
-    println!("{backend_uri}");
     *request.uri_mut() = match Uri::try_from(backend_uri) {
         Ok(url) => url,
         Err(_) => {
