@@ -20,6 +20,8 @@ pub struct Context {
     cargo_manifest: Manifest,
     pub(crate) create_version: &'static str,
     pub(crate) serve: bool,
+    /// Automatically open the app in the browser on server start.
+    pub(crate) open: bool,
     pub(crate) cli_tx: mpsc::Sender<cli::Message>,
     pub(crate) init_start_time: time::Instant,
 }
@@ -54,6 +56,7 @@ impl Context {
         };
 
         let assets_dir = out_dir.join(&config.build.assets_dir);
+        let open = config.server.open;
 
         Ok(Self {
             config,
@@ -66,6 +69,7 @@ impl Context {
             cargo_manifest,
             create_version: env!("CARGO_PKG_VERSION"),
             serve,
+            open,
             cli_tx,
             init_start_time,
         })

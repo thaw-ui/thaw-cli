@@ -6,7 +6,7 @@ use crate::{
     server::{csr, init_build_finished, ssr},
 };
 use build::BuildCommands;
-use clap::Subcommand;
+use clap::{Args, Subcommand};
 use crossterm::style::Stylize;
 use std::sync::Arc;
 use tokio::{task, time};
@@ -24,10 +24,10 @@ pub enum Commands {
 impl Commands {
     pub async fn run(self, mut context: Context) -> color_eyre::Result<()> {
         context.env.set_default(ssr::default_env(&context)?);
-        let context = Arc::new(context);
 
         match self {
             Self::Build(subcommmands) => {
+                let context = Arc::new(context);
                 build(context.clone(), async {
                     subcommmands.run(&context).await?;
                     Ok(())
@@ -35,7 +35,11 @@ impl Commands {
                 .await
             }
             Self::Serve(subcommmands) => match subcommmands {
-                ServeCommands::Csr => {
+                ServeCommands::Csr(ServeCsrArgs { open }) => {
+                    if let Some(open) = open {
+                        context.open = open;
+                    }
+                    let context = Arc::new(context);
                     let assets = BuildCommands::Csr.run(&context).await?;
                     init_build_finished(&context).await?;
                     csr::DevServer::new(context)?
@@ -45,7 +49,11 @@ impl Commands {
                         .await?;
                     Ok(())
                 }
-                ServeCommands::Ssr => {
+                ServeCommands::Ssr(ServeSsrArgs { open }) => {
+                    if let Some(open) = open {
+                        context.open = open;
+                    }
+                    let context = Arc::new(context);
                     let assets = BuildCommands::Ssr.run(&context).await?;
                     init_build_finished(&context).await?;
                     ssr::DevServer::new(context)?
@@ -63,9 +71,23 @@ impl Commands {
 #[derive(Debug, Subcommand)]
 pub enum ServeCommands {
     /// Client-side rendering
-    Csr,
+    Csr(ServeCsrArgs),
     /// Server-side Rendering
-    Ssr,
+    Ssr(ServeSsrArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ServeCsrArgs {
+    /// Open browser on startup
+    #[arg(long, default_missing_value = "true", num_args = 0..=1)]
+    pub open: Option<bool>,
+}
+
+#[derive(Debug, Args)]
+pub struct ServeSsrArgs {
+    /// Open browser on startup
+    #[arg(long, default_missing_value = "true", num_args = 0..=1)]
+    pub open: Option<bool>,
 }
 
 async fn build(

@@ -1,5 +1,6 @@
 pub mod csr;
 mod csr_app;
+mod open_browser;
 pub mod ssr;
 mod ssr_app;
 mod ws;

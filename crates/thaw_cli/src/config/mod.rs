@@ -98,6 +98,12 @@ pub struct ServerConfig {
     #[serde(default = "server::default_port")]
     pub port: u32,
 
+    /// Automatically open the app in the browser on server start.
+    ///
+    /// Default: false
+    #[serde(default = "server::default_open")]
+    pub open: bool,
+
     /// Whether to enable erased components mode.
     ///
     /// erase_components mode offers a signifigant compile time speedup by type
@@ -114,6 +120,7 @@ impl Default for ServerConfig {
         Self {
             host: server::default_host(),
             port: server::default_port(),
+            open: server::default_open(),
             erase_components: server::default_erase_components(),
         }
     }

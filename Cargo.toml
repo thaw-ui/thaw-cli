@@ -1,3 +1,4 @@
 [workspace]
 resolver = "3"
-members = ["crates/thaw_cli", "examples/start_trunk", "examples/start_axum"]
+members = ["crates/thaw_cli"]
+exclude = ["examples"]

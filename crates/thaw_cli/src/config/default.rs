@@ -11,6 +11,10 @@ pub mod server {
         6321
     }
 
+    pub fn default_open() -> bool {
+        false
+    }
+
     pub fn default_erase_components() -> bool {
         false
     }

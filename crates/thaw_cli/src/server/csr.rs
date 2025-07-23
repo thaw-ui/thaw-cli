@@ -115,7 +115,8 @@ impl DevServer {
             self.watch_assets(assets)?;
         }
 
-        self.page_tx.as_ref().unwrap().send(())?;
+        // When no page is open, this send will report an error.
+        let _ = self.page_tx.as_ref().unwrap().send(());
         Ok(())
     }
 

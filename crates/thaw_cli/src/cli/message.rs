@@ -32,6 +32,18 @@ impl Message {
                 Self::CargoPackaging(CargoPackagingMessage::Blocking(_)),
                 Self::CargoPackaging(CargoPackagingMessage::Blocking(_)),
             )
+            // Downloaded
+            // Downloaded
+            | (
+                Self::CargoPackaging(CargoPackagingMessage::Downloaded(_)),
+                Self::CargoPackaging(CargoPackagingMessage::Downloaded(_)),
+            )
+            // Downloaded
+            // Downloaded
+            | (
+                Self::CargoPackaging(CargoPackagingMessage::Downloaded(_)),
+                Self::CargoPackaging(CargoPackagingMessage::Compiling(_)),
+            )
             // Blocking
             // Compiling
             | (
@@ -97,8 +109,10 @@ impl Message {
 #[derive(Debug)]
 pub enum CargoPackagingMessage {
     Blocking(String),
+    Downloaded(String),
     Compiling(String),
     Warning(String),
+    Error(String),
     Finished(String),
     CompilerMessage(Diagnostic),
     Other(String),
@@ -109,8 +123,10 @@ impl fmt::Display for CargoPackagingMessage {
         match self {
             Self::CompilerMessage(value) => write!(f, "{value}")?,
             Self::Blocking(value)
+            | Self::Downloaded(value)
             | Self::Compiling(value)
             | Self::Warning(value)
+            | Self::Error(value)
             | Self::Finished(value)
             | Self::Other(value) => f.write_str(value)?,
         }
@@ -128,6 +144,9 @@ impl From<String> for CargoPackagingMessage {
         if trim_start.starts_with("Compiling ") {
             let compiling = fmt::format(format_args!("{}", "Compiling".green()));
             Self::Compiling(trim_start.replace("Compiling", &compiling))
+        } else if trim_start.starts_with("Downloaded ") {
+            let downloaded = fmt::format(format_args!("{}", "Downloaded".green()));
+            Self::Downloaded(trim_start.replace("Downloaded", &downloaded))
         } else if trim_start.starts_with("Blocking ") {
             let blocking = fmt::format(format_args!("{}", "Blocking".cyan()));
             Self::Blocking(trim_start.replace("Blocking", &blocking))
@@ -137,6 +156,9 @@ impl From<String> for CargoPackagingMessage {
         } else if trim_start.starts_with("warning:") {
             let warning = fmt::format(format_args!("{}", "warning".yellow()));
             Self::Warning(trim_start.replace("warning", &warning))
+        } else if trim_start.starts_with("error:") {
+            let value = fmt::format(format_args!("{}", "error".red()));
+            Self::Error(trim_start.replace("error", &value))
         } else {
             Self::Other(value)
         }

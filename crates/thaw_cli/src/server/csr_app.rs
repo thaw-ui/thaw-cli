@@ -1,4 +1,7 @@
-use super::ws::{THAW_CLI_WS_PATH, ThawCliWs, thaw_cli_ws};
+use super::{
+    open_browser::open_browser,
+    ws::{THAW_CLI_WS_PATH, ThawCliWs, thaw_cli_ws},
+};
 use crate::context::Context;
 use axum::{
     Router,
@@ -45,6 +48,14 @@ pub async fn run(context: Arc<Context>, tx: broadcast::Sender<()>) -> color_eyre
         Ok(listener) => listener,
         Err(err) => return color_eyre::Result::Err(err.into()),
     };
+
+    if context.open {
+        let url = format!(
+            "http://{}:{}",
+            context.config.server.host, context.config.server.port,
+        );
+        open_browser(&context, url)?;
+    }
 
     axum::serve(listener, app).await?;
 

@@ -133,7 +133,8 @@ impl DevServer {
 
             self.run_ssr_exe();
         }
-        self.page_tx.as_ref().unwrap().send(())?;
+        // When no page is open, this send will report an error.
+        let _ = self.page_tx.as_ref().unwrap().send(());
         Ok(())
     }
 
