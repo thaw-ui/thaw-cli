@@ -51,8 +51,8 @@ pub async fn wasm_bindgen(
 
     let wasm_path = context.wasm_bindgen_dir.join(&wasm_name);
     let mut out_wasm_path = out_dir.join(wasm_name);
-    tokio::fs::remove_file(&out_wasm_path).await?;
-    if context.serve {
+    if context.ssr {
+        tokio::fs::remove_file(&out_wasm_path).await?;
         out_wasm_path = out_dir.join(format!("{package_name}.wasm"))
     }
     wasm_opt(context, &wasm_path, &out_wasm_path).await?;
