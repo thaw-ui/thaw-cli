@@ -1,9 +1,9 @@
-use crate::{cli, config::Config, env::Env};
+use crate::{config::Config, env::Env, logger::Logger};
 use cargo_manifest::Manifest;
 use cargo_metadata::MetadataCommand;
 use color_eyre::eyre::eyre;
 use std::path::{Path, PathBuf};
-use tokio::{sync::mpsc, time};
+use tokio::time;
 
 #[derive(Debug)]
 pub struct Context {
@@ -23,7 +23,7 @@ pub struct Context {
     pub(crate) ssr: bool,
     /// Automatically open the app in the browser on server start.
     pub(crate) open: bool,
-    pub(crate) cli_tx: mpsc::Sender<cli::Message>,
+    pub(crate) logger: Logger,
     pub(crate) init_start_time: time::Instant,
 }
 
@@ -32,7 +32,7 @@ impl Context {
         config: Config,
         env: Env,
         current_dir: PathBuf,
-        cli_tx: mpsc::Sender<cli::Message>,
+        logger: Logger,
         init_start_time: time::Instant,
         serve: bool,
     ) -> color_eyre::Result<Self> {
@@ -72,7 +72,7 @@ impl Context {
             serve,
             ssr: false,
             open,
-            cli_tx,
+            logger,
             init_start_time,
         })
     }

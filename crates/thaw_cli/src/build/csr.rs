@@ -1,4 +1,4 @@
-use crate::{cli, context::Context};
+use crate::{context::Context, logger};
 use color_eyre::eyre::eyre;
 use std::{fs, io::Write};
 
@@ -12,8 +12,10 @@ pub fn cargo_build_args(context: &Context) -> Vec<&'static str> {
 
 pub async fn build_index_html(context: &Context) -> color_eyre::Result<()> {
     context
-        .cli_tx
-        .send(cli::Message::Build("Packaging index.html file".to_string()))
+        .logger
+        .send(logger::Message::Build(
+            "Packaging index.html file".to_string(),
+        ))
         .await?;
 
     let html_path = context.current_dir.join("index.html");

@@ -3,8 +3,8 @@ mod build;
 pub use build::BuildCommands;
 
 use crate::{
-    cli,
     context::Context,
+    logger,
     server::{csr, init_build_finished, ssr},
 };
 use clap::{Args, Subcommand};
@@ -107,15 +107,15 @@ async fn build(
     let time = start.elapsed().as_secs_f32();
     if context.serve {
         context
-            .cli_tx
-            .send(cli::Message::Build(
+            .logger
+            .send(logger::Message::Build(
                 format!("✓ built in {time:.2}s").green().to_string(),
             ))
             .await?;
     } else {
         let context = context.clone();
         task::spawn_blocking(move || {
-            context.cli_tx.blocking_send(cli::Message::Build(
+            context.logger.blocking_send(logger::Message::Build(
                 format!("✓ built in {time:.2}s").green().to_string(),
             ))
         })

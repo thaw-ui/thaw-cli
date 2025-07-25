@@ -5,11 +5,13 @@ mod config;
 mod context;
 mod dx;
 mod env;
+mod logger;
 mod server;
 mod utils;
 
 use self::{cli::Cli, config::Config, context::Context, env::Env};
 use clap::Parser;
+use logger::Logger;
 use tokio::time;
 
 #[tokio::main]
@@ -26,12 +28,12 @@ async fn main() -> color_eyre::Result<()> {
     let config = Config::parse(config_path, false)?;
     let env = Env::load(&current_dir, cli.mode(), &config.env_dir)?;
 
-    let message_tx = Cli::watch_message(current_dir.clone());
+    let logger = Logger::new(current_dir.clone());
     let context = Context::new(
         config,
         env,
         current_dir,
-        message_tx,
+        logger,
         init_start_time,
         cli.is_serve(),
     )?;

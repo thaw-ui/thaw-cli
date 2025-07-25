@@ -1,6 +1,6 @@
 use crate::{
-    cli,
     context::Context,
+    logger,
     utils::{DotEyre, fs::copy_dir_all, wasm_opt_bin_path},
 };
 use std::path::{Path, PathBuf};
@@ -26,8 +26,8 @@ pub async fn wasm_bindgen(
     out_dir: &Path,
 ) -> color_eyre::Result<()> {
     context
-        .cli_tx
-        .send(cli::Message::Build(
+        .logger
+        .send(logger::Message::Build(
             "Generating JS/WASM with wasm-bindgen".to_string(),
         ))
         .await?;
@@ -62,8 +62,8 @@ pub async fn wasm_bindgen(
 
 async fn wasm_opt(context: &Context, input_path: &Path, out_path: &Path) -> color_eyre::Result<()> {
     context
-        .cli_tx
-        .send(cli::Message::Build("Optimize WASM".to_string()))
+        .logger
+        .send(logger::Message::Build("Optimize WASM".to_string()))
         .await?;
     let path = wasm_opt_bin_path().await?;
     // wasm_opt::OptimizationOptions::new_optimize_for_size_aggressively()

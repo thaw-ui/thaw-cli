@@ -7,8 +7,8 @@ pub use assets::collect_assets;
 pub use wasm::wasm_bindgen;
 
 use crate::{
-    cli,
     context::Context,
+    logger,
     utils::fs::{clear_dir, copy_dir_all},
 };
 use color_eyre::eyre::eyre;
@@ -28,8 +28,8 @@ pub async fn clear_out_dir(context: &Context) -> color_eyre::Result<()> {
     // so no prompt is needed to avoid misleading users.
     if !context.serve {
         context
-            .cli_tx
-            .send(cli::Message::Build(
+            .logger
+            .send(logger::Message::Build(
                 "Cleaning up the out_dir directory".to_string(),
             ))
             .await?;
@@ -52,8 +52,8 @@ pub async fn copy_public_dir(context: &Context, out_dir: &Path) -> color_eyre::R
     }
 
     context
-        .cli_tx
-        .send(cli::Message::Build(
+        .logger
+        .send(logger::Message::Build(
             "Copying public_dir directory".to_string(),
         ))
         .await?;
@@ -119,10 +119,10 @@ pub async fn run_cargo_build(
                 // TODO
                 None
             }
-            Message::CompilerMessage(compiler_message) => Some(cli::Message::CargoPackaging(
+            Message::CompilerMessage(compiler_message) => Some(logger::Message::CargoPackaging(
                 compiler_message.message.into(),
             )),
-            Message::TextLine(value) => Some(cli::Message::CargoPackaging(value.into())),
+            Message::TextLine(value) => Some(logger::Message::CargoPackaging(value.into())),
             Message::BuildFinished(build_finished) => {
                 if !build_finished.success {
                     if context.serve {
@@ -132,13 +132,13 @@ pub async fn run_cargo_build(
                         return Err(eyre!("Cargo build failed"));
                     }
                 }
-                Some(cli::Message::CargoBuildFinished)
+                Some(logger::Message::CargoBuildFinished)
             }
             _ => None,
         };
 
         if let Some(message) = message {
-            let _ = context.cli_tx.send(message).await;
+            let _ = context.logger.send(message).await;
         }
     }
 

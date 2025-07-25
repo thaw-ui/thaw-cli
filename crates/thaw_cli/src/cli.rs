@@ -1,14 +1,8 @@
-mod message;
-
-pub use message::{Message, PrintMessage};
-
 use crate::{
     commands::{BuildCommands, Commands, ServeCommands},
     context::Context,
 };
 use clap::Parser;
-use std::path::PathBuf;
-use tokio::{sync::mpsc, task};
 
 #[derive(Debug, Parser)]
 #[clap(version)]
@@ -42,18 +36,5 @@ impl Cli {
             Commands::Build(_) => "production",
             Commands::Serve(_) => "development",
         }
-    }
-
-    pub fn watch_message(current_dir: PathBuf) -> mpsc::Sender<Message> {
-        let (message_tx, mut message_rx) = mpsc::channel(50);
-        let mut print_message = PrintMessage::new(current_dir);
-
-        task::spawn(async move {
-            while let Some(message) = message_rx.recv().await {
-                print_message.print(message).unwrap();
-            }
-        });
-
-        message_tx
     }
 }

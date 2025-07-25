@@ -7,8 +7,36 @@ use crossterm::{
 use std::{
     fmt,
     io::{self, Write},
+    ops::Deref,
     path::{Path, PathBuf},
 };
+use tokio::sync::mpsc;
+
+#[derive(Debug)]
+pub struct Logger(mpsc::Sender<Message>);
+
+impl Logger {
+    pub fn new(current_dir: PathBuf) -> Self {
+        let (message_tx, mut message_rx) = mpsc::channel(50);
+        let mut print_message = PrintMessage::new(current_dir);
+
+        tokio::spawn(async move {
+            while let Some(message) = message_rx.recv().await {
+                print_message.print(message).unwrap();
+            }
+        });
+
+        Self(message_tx)
+    }
+}
+
+impl Deref for Logger {
+    type Target = mpsc::Sender<Message>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Debug)]
 pub enum Message {

@@ -1,8 +1,8 @@
 use super::Event;
 use crate::{
     build::{assets, cargo_build_exe_name, collect_assets, hydrate, run_cargo_build, wasm_bindgen},
-    cli,
     context::Context,
+    logger,
     utils::{DotEyre, fs::clear_dir},
 };
 use notify_debouncer_full::{
@@ -88,8 +88,8 @@ impl DevServer {
                 Event::Watch(paths) => {
                     let build_result = self.rebuild(&paths).await;
                     self.context
-                        .cli_tx
-                        .send(cli::Message::PageReload(paths, build_result))
+                        .logger
+                        .send(logger::Message::PageReload(paths, build_result))
                         .await?;
                 }
             }
