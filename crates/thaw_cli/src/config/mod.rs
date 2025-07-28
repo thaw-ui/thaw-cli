@@ -104,6 +104,11 @@ pub struct ServerConfig {
     #[serde(default = "server::default_open")]
     pub open: bool,
 
+    /// File system watcher options to pass on to
+    /// [notify-debouncer-full](https://github.com/notify-rs/notify/tree/main/notify-debouncer-full).
+    #[serde(default = "Watch::default")]
+    pub watch: Watch,
+
     /// Whether to enable erased components mode.
     ///
     /// erase_components mode offers a signifigant compile time speedup by type
@@ -121,9 +126,26 @@ impl Default for ServerConfig {
             host: server::default_host(),
             port: server::default_port(),
             open: server::default_open(),
+            watch: Watch::default(),
             erase_components: server::default_erase_components(),
         }
     }
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct Watch {
+    /// Watch folder or file changes.
+    #[serde(default = "Default::default")]
+    pub paths: Vec<WatchPath>,
+    /// Defines files/paths to be ignored.
+    /// Use [globset](https://github.com/BurntSushi/ripgrep/tree/master/crates/globset) matching.
+    #[serde(default = "Default::default")]
+    pub ignored: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WatchPath {
+    pub path: String,
 }
 
 #[derive(Debug, Deserialize)]

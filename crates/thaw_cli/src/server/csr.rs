@@ -5,6 +5,7 @@ use crate::{
     logger,
     utils::DotEyre,
 };
+use globset::{Glob, GlobSetBuilder};
 use notify_debouncer_full::{
     DebounceEventResult, Debouncer, FileIdMap, new_debouncer,
     notify::{EventKind, RecommendedWatcher, RecursiveMode},
@@ -28,6 +29,12 @@ impl DevServer {
     pub fn new(context: Arc<Context>) -> color_eyre::Result<Self> {
         let (event_tx, event_rx) = mpsc::channel::<Event>(240);
 
+        let mut builder = GlobSetBuilder::new();
+        for glob in context.config.server.watch.ignored.iter() {
+            builder.add(Glob::new(glob)?);
+        }
+        let glob_set = builder.build()?;
+
         let watcher = new_debouncer(
             Duration::from_millis(500),
             None,
@@ -37,6 +44,7 @@ impl DevServer {
                         .into_iter()
                         .filter(|e| matches!(e.kind, EventKind::Create(_) | EventKind::Modify(_)))
                         .flat_map(|e| e.event.paths)
+                        .filter(|path| !glob_set.is_match(path))
                         .collect::<Vec<_>>();
                     if !paths.is_empty() {
                         event_tx.blocking_send(Event::Watch(paths)).unwrap();
@@ -61,6 +69,10 @@ impl DevServer {
         let index_html = self.context.current_dir.join("index.html");
         self.watcher.watch(index_html, RecursiveMode::Recursive)?;
         self.watch_assets(assets)?;
+        for watch in &self.context.config.server.watch.paths {
+            let path = self.context.current_dir.join(&watch.path);
+            self.watcher.watch(path, RecursiveMode::Recursive)?;
+        }
 
         let (page_tx, _) = broadcast::channel(10);
         task::spawn({
@@ -131,4 +143,15 @@ impl DevServer {
         self.assets = assets;
         Ok(())
     }
+}
+
+#[test]
+fn test_globset() {
+    let mut builder = GlobSetBuilder::new();
+    builder.add(Glob::new("**/dist/*.css").unwrap());
+    let glob_set = builder.build().unwrap();
+
+    assert!(!glob_set.is_match("foo.rs"));
+    let path = PathBuf::from("D:\\thaw-cli\\examples\\start_trunk\\./dist\\test.css");
+    assert!(glob_set.is_match(path));
 }

@@ -5,6 +5,7 @@ use crate::{
     logger,
     utils::{DotEyre, fs::clear_dir},
 };
+use globset::{Glob, GlobSetBuilder};
 use notify_debouncer_full::{
     DebounceEventResult, Debouncer, FileIdMap, new_debouncer,
     notify::{EventKind, RecommendedWatcher, RecursiveMode},
@@ -34,6 +35,12 @@ impl DevServer {
     pub fn new(context: Arc<Context>) -> color_eyre::Result<Self> {
         let (event_tx, event_rx) = mpsc::channel::<Event>(240);
 
+        let mut builder = GlobSetBuilder::new();
+        for glob in context.config.server.watch.ignored.iter() {
+            builder.add(Glob::new(glob)?);
+        }
+        let glob_set = builder.build()?;
+
         let watcher = new_debouncer(
             Duration::from_millis(500),
             None,
@@ -43,6 +50,7 @@ impl DevServer {
                         .into_iter()
                         .filter(|e| matches!(e.kind, EventKind::Create(_) | EventKind::Modify(_)))
                         .flat_map(|e| e.event.paths)
+                        .filter(|path| !glob_set.is_match(path))
                         .collect::<Vec<_>>();
                     if !paths.is_empty() {
                         event_tx.blocking_send(Event::Watch(paths)).unwrap();
@@ -69,6 +77,10 @@ impl DevServer {
         let src_dir = self.context.current_dir.join("src");
         self.watcher.watch(src_dir, RecursiveMode::Recursive)?;
         self.watch_assets(assets)?;
+        for watch in &self.context.config.server.watch.paths {
+            let path = self.context.current_dir.join(&watch.path);
+            self.watcher.watch(path, RecursiveMode::Recursive)?;
+        }
 
         self.run_ssr_exe();
 
