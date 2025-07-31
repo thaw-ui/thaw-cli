@@ -1,4 +1,5 @@
 use super::{
+    middlewares,
     open_browser::open_browser,
     ws::{THAW_CLI_WS_PATH, ThawCliWs, thaw_cli_ws},
 };
@@ -37,6 +38,7 @@ pub async fn run(context: Arc<Context>, tx: broadcast::Sender<()>) -> color_eyre
         .route(THAW_CLI_WS_PATH, get(thaw_cli_ws))
         .fallback_service(get_service(serve_dir))
         .with_state(state)
+        .layer(middlewares::ProxyLayer::new(&context))
         .layer(CompressionLayer::new());
 
     let addr = format!(

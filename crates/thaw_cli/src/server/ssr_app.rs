@@ -1,4 +1,4 @@
-use super::{open_browser::open_browser, ws::handle_thaw_cli_ws};
+use super::{middlewares, open_browser::open_browser, ws::handle_thaw_cli_ws};
 use crate::context::Context;
 use axum::{
     Router,
@@ -72,6 +72,7 @@ pub async fn run(context: Arc<Context>, tx: broadcast::Sender<()>) -> color_eyre
         .route("/live_reload", get(cargo_leptos_ws))
         .fallback(handler)
         .with_state(state)
+        .layer(middlewares::ProxyLayer::new(&context))
         .layer(CompressionLayer::new());
 
     let addr = format!(

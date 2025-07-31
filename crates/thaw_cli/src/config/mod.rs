@@ -8,7 +8,6 @@ use serde::{
 use std::path::PathBuf;
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct Config {
     /// Build artifacts in release mode, with optimizations.
     ///
@@ -84,7 +83,6 @@ impl<'de> Deserialize<'de> for EnvDir {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct ServerConfig {
     /// Specify which IP addresses the server should listen on.
     ///
@@ -103,6 +101,10 @@ pub struct ServerConfig {
     /// Default: false
     #[serde(default = "server::default_open")]
     pub open: bool,
+
+    /// Configure custom proxy rules for the dev server.
+    #[serde(default = "Default::default")]
+    pub proxy: Vec<Proxy>,
 
     /// File system watcher options to pass on to
     /// [notify-debouncer-full](https://github.com/notify-rs/notify/tree/main/notify-debouncer-full).
@@ -126,10 +128,19 @@ impl Default for ServerConfig {
             host: server::default_host(),
             port: server::default_port(),
             open: server::default_open(),
+            proxy: Default::default(),
             watch: Watch::default(),
             erase_components: server::default_erase_components(),
         }
     }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Proxy {
+    pub proxy: String,
+    pub target: String,
+    #[serde(default = "Default::default")]
+    pub change_origin: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -149,7 +160,6 @@ pub struct WatchPath {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct BuildConfig {
     /// Specify the output directory (relative to project root).
     ///

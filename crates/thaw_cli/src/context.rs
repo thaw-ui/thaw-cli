@@ -1,8 +1,11 @@
-use crate::{config::Config, env::Env, logger::Logger};
+use crate::{config::Config, env::Env, logger::Logger, utils::client::Client};
 use cargo_manifest::Manifest;
 use cargo_metadata::MetadataCommand;
 use color_eyre::eyre::eyre;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tokio::time;
 
 #[derive(Debug)]
@@ -25,6 +28,7 @@ pub struct Context {
     pub(crate) open: bool,
     pub(crate) logger: Logger,
     pub(crate) init_start_time: time::Instant,
+    pub(crate) client: Arc<Client>,
 }
 
 impl Context {
@@ -74,6 +78,7 @@ impl Context {
             open,
             logger,
             init_start_time,
+            client: Arc::new(Client::new()),
         })
     }
 

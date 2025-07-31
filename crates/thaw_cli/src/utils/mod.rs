@@ -1,3 +1,4 @@
+pub mod client;
 mod dot_eyre;
 pub mod fs;
 mod wasm_opt;
