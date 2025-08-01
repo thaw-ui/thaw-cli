@@ -4404,6 +4404,7 @@ dependencies = [
  "open",
  "pdb",
  "rayon",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

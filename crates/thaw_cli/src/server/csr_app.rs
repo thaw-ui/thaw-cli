@@ -1,9 +1,9 @@
 use super::{
     middlewares,
     open_browser::open_browser,
-    ws::{THAW_CLI_WS_PATH, ThawCliWs, thaw_cli_ws},
+    ws::{ThawCliWs, thaw_cli_ws},
 };
-use crate::context::Context;
+use crate::{constants::THAW_CLI_WS_PATH, context::Context};
 use axum::{
     Router,
     routing::{get, get_service},

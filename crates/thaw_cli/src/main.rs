@@ -2,10 +2,12 @@ mod build;
 mod cli;
 mod commands;
 mod config;
+mod constants;
 mod context;
 mod dx;
 mod env;
 mod logger;
+mod plugins;
 mod server;
 mod utils;
 

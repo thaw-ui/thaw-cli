@@ -22,8 +22,6 @@ impl ThawCliWs {
     }
 }
 
-pub static THAW_CLI_WS_PATH: &str = "/__thaw_cli__";
-
 pub async fn thaw_cli_ws(ws: WebSocketUpgrade, State(state): State<ThawCliWs>) -> Response {
     ws.protocols(vec!["thaw-cli-ping"])
         .on_upgrade(move |socket| handle_thaw_cli_ws(socket, state.tx.clone(), false))

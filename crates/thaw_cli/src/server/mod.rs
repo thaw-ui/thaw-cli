@@ -1,6 +1,6 @@
 pub mod csr;
 mod csr_app;
-mod middlewares;
+pub mod middlewares;
 mod open_browser;
 pub mod ssr;
 mod ssr_app;

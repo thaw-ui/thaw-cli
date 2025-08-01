@@ -13,7 +13,7 @@ function debounceReload(time) {
 const pageReload = debounceReload(50);
 
 console.debug("[thaw-cli] connecting...");
-const socket = new WebSocket(`ws://${window.location.host}/__thaw_cli__`);
+const socket = new WebSocket(`ws://${window.location.host}/@thaw_cli/client`);
 
 socket.addEventListener("message", async (event) => {
     handleMessage(JSON.parse(event.data));

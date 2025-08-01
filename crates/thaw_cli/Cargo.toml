@@ -53,6 +53,8 @@ pdb = "0.8.0"
 walrus = { version = "0.23.3", features = ["parallel"] }
 wasmparser = "0.235.0"
 rayon = "1.10.0"
+
+regex = "1.11"
 [[bin]]
 name = "thaw"
 path = "src/main.rs"
