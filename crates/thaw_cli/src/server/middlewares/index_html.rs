@@ -1,14 +1,12 @@
 use crate::{
     constants::CLIENT_PUBLIC_PATH,
     context::Context,
-    plugins::html::{
-        HtmlTagDescriptor, HtmlTagInjectTo, IndexHtmlTransformResult, apply_html_transform,
-    },
+    plugins::html::{HtmlTagDescriptor, HtmlTagInjectTo, IndexHtmlTransformResult},
 };
 use std::collections::HashMap;
 use tokio::{fs, io::AsyncWriteExt};
 
-async fn dev_html_hook(context: &Context) -> color_eyre::Result<IndexHtmlTransformResult> {
+pub async fn dev_html_hook(context: &Context) -> color_eyre::Result<IndexHtmlTransformResult> {
     let out_dir = &context.out_dir;
     let path = out_dir.join(format!(".{CLIENT_PUBLIC_PATH}.js"));
     if !fs::try_exists(&path).await? {
@@ -25,13 +23,8 @@ async fn dev_html_hook(context: &Context) -> color_eyre::Result<IndexHtmlTransfo
                 ("type", "module".to_string()),
                 ("src", format!("{CLIENT_PUBLIC_PATH}.js")),
             ]),
+            children: None,
             inject_to: HtmlTagInjectTo::HeadPrepend,
         }],
     })
-}
-
-pub async fn dev_html_transform_fn(context: &Context, html: &mut String) -> color_eyre::Result<()> {
-    let res = dev_html_hook(context).await?;
-    apply_html_transform(html, res.tags);
-    Ok(())
 }

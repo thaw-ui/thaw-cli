@@ -1,4 +1,11 @@
-// This file is based on the code modification of [Dioxus CLI](https://github.com/DioxusLabs/dioxus/blob/main/packages/cli/src/build/assets.rs)
+/**
+ * The following is modified based on source found in
+ * https://github.com/DioxusLabs/dioxus/blob/main/packages/cli/src/build/assets.rs
+ *
+ * MIT Licensed
+ * https://github.com/DioxusLabs/dioxus/blob/main/LICENSE-MIT
+ *
+ */
 // commit 2071be2b6753327a980909fc58a1c4b81bed911a
 use color_eyre::{
     Result,

@@ -1,4 +1,4 @@
-use crate::{context::Context, logger, server::middlewares::index_html::dev_html_transform_fn};
+use crate::{context::Context, logger, plugins::html::BuildHtml};
 use color_eyre::eyre::eyre;
 use std::{fs, io::Write};
 
@@ -24,28 +24,15 @@ pub async fn build_index_html(context: &Context) -> color_eyre::Result<()> {
             "No index.html file was found in the root directory. Location: {html_path:?}"
         ));
     }
-    let mut html_str = fs::read_to_string(html_path)?;
-    let Some(body_end_index) = html_str.find("</body>") else {
-        return color_eyre::Result::Err(eyre!("No end tag found for body"));
-    };
+    let mut html = fs::read_to_string(html_path)?;
 
-    let package_name = context.cargo_package_name()?;
-    let assets_path = &context.config.build.assets_dir;
-    let import_script = format!(
-        r#"<script type="module">import init from '/{assets_path}/{package_name}.js';await init({{ module_or_path: '/{assets_path}/{package_name}_bg.wasm' }})</script>"#,
-    );
-
-    html_str.insert_str(body_end_index, &import_script);
-
-    if context.serve {
-        dev_html_transform_fn(context, &mut html_str).await?;
-    }
+    html = BuildHtml::transform(context, html).await?;
 
     let out_dir = &context.out_dir;
 
     let new_html_path = out_dir.join("index.html");
     let mut file = fs::File::create(new_html_path)?;
-    file.write_all(html_str.as_bytes())?;
+    file.write_all(html.as_bytes())?;
 
     Ok(())
 }
