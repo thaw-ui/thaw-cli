@@ -31,6 +31,11 @@ pub struct Config {
     #[serde(default = "BuildConfig::default")]
     pub build: BuildConfig,
 
+    /// The directory from which .env files are loaded.
+    /// Can be an absolute path, or a path relative to the project root.
+    /// false will disable the .env file loading.
+    ///
+    /// Default: Root directory
     #[serde(default = "EnvDir::default")]
     pub env_dir: EnvDir,
 }
@@ -76,7 +81,7 @@ impl<'de> Deserialize<'de> for EnvDir {
             RawInput::Bool(false) => Ok(Self::False),
             RawInput::Bool(true) => Err(de::Error::invalid_value(
                 Unexpected::Bool(true),
-                &"string or false",
+                &"String or false",
             )),
         }
     }

@@ -1,6 +1,7 @@
 pub mod assets;
 pub mod csr;
 pub mod hydrate;
+pub mod ssr;
 mod wasm;
 
 pub use assets::collect_assets;

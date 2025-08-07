@@ -1,7 +1,7 @@
 use crate::{
     build::{
         assets, cargo_build_exe_name, clear_out_dir, collect_assets, copy_public_dir, csr, hydrate,
-        run_cargo_build, wasm_bindgen,
+        run_cargo_build, ssr, wasm_bindgen,
     },
     context::Context,
 };
@@ -60,6 +60,7 @@ impl BuildCommands {
                     server_out_dir.join(cargo_build_exe_name(context)?),
                 )
                 .await?;
+                ssr::build_env_file(context, &server_out_dir).await?;
                 Ok(assets)
             }
         }

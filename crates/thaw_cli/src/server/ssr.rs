@@ -217,7 +217,7 @@ fn run_ssr_exe(context: Arc<Context>) -> color_eyre::Result<Child> {
     Ok(child)
 }
 
-pub fn default_env(context: &Context) -> color_eyre::Result<Vec<(&'static str, String)>> {
+pub fn default_dev_env(context: &Context) -> color_eyre::Result<Vec<(&'static str, String)>> {
     Ok(vec![
         ("LEPTOS_OUTPUT_NAME", context.cargo_package_name()?),
         ("LEPTOS_SITE_PKG_DIR", "assets".to_string()),
@@ -226,6 +226,14 @@ pub fn default_env(context: &Context) -> color_eyre::Result<Vec<(&'static str, S
             "LEPTOS_RELOAD_EXTERNAL_PORT",
             context.config.server.port.to_string(),
         ),
+        ("LEPTOS_SITE_ADDR", "127.0.0.1:3000".to_string()),
+    ])
+}
+
+pub fn default_env(context: &Context) -> color_eyre::Result<Vec<(&'static str, String)>> {
+    Ok(vec![
+        ("LEPTOS_OUTPUT_NAME", context.cargo_package_name()?),
+        ("LEPTOS_SITE_PKG_DIR", "assets".to_string()),
         ("LEPTOS_SITE_ADDR", "127.0.0.1:3000".to_string()),
     ])
 }

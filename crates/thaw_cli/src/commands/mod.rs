@@ -24,7 +24,7 @@ pub enum Commands {
 
 impl Commands {
     pub async fn run(self, mut context: Context) -> color_eyre::Result<()> {
-        context.env.set_default(ssr::default_env(&context)?);
+        context.env.set_default(ssr::default_dev_env(&context)?);
 
         match self {
             Self::Build(subcommmands) => {
